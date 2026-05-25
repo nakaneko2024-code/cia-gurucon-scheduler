@@ -134,6 +134,8 @@
       transition: all 0.15s;
       background: var(--color-white);
       user-select: none;
+      appearance: none;
+      -webkit-appearance: none;
     }
     .radio-btn.selected {
       border-color: var(--color-accent2);
@@ -169,7 +171,6 @@
     .forecast.green  { background: #f0fdf4; border: 1.5px solid #86efac; }
     .forecast.yellow { background: #fffbeb; border: 1.5px solid #fcd34d; }
     .forecast.red    { background: #fef2f2; border: 1.5px solid #fca5a5; }
-    .forecast.hidden { display: none; }
     .forecast-icon { font-size: 1.3rem; flex-shrink: 0; }
     .forecast-text { font-size: 0.84rem; }
 
@@ -342,8 +343,8 @@
         <div class="field">
           <label>&#9312; 希望時間</label>
           <div class="radio-group">
-            <div class="radio-btn" id="btn10" onclick="selectDuration(10)">10分</div>
-            <div class="radio-btn" id="btn20" onclick="selectDuration(20)">20分</div>
+            <button class="radio-btn" id="btn10" type="button" onclick="selectDuration(10)">10分</button>
+            <button class="radio-btn" id="btn20" type="button" onclick="selectDuration(20)">20分</button>
           </div>
         </div>
 
@@ -420,7 +421,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
   <script>
-    const ADMIN_PASSWORD = 'cia2024'; // デプロイ前に変更すること
+    const ADMIN_PASSWORD = 'cia2024'; // ★デプロイ前に変更。ソースに露出するため推測されにくい文字列にすること
 
     // Firebase config はここに差し込む（Task 4）
     // const firebaseConfig = { ... };
