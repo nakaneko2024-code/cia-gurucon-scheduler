@@ -423,6 +423,72 @@
   <script>
     const ADMIN_PASSWORD = 'cia2024'; // ★デプロイ前に変更。ソースに露出するため推測されにくい文字列にすること
 
+    // ══════════════════════════════════════════
+    // 時刻ユーティリティ
+    // ══════════════════════════════════════════
+
+    // "21:00" → 1260, "25:30" → 1530（日本の深夜表記対応）
+    function timeToMin(str) {
+      if (!str || !str.includes(':')) return NaN;
+      const [h, m] = str.trim().split(':').map(Number);
+      if (isNaN(h) || isNaN(m)) return NaN;
+      return h * 60 + m;
+    }
+
+    // 1260 → "21:00", 1530 → "25:30"
+    function minToTime(min) {
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    // XSS 対策
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ══════════════════════════════════════════
+    // EDF スケジュール生成（コアアルゴリズム）
+    // ══════════════════════════════════════════
+    // entries: [{ name, duration, timeStart, timeEnd }, ...]
+    // startTimeStr: "21:00"
+    // 戻り値: [{ index, name, duration, slotStart, slotEnd, deadline, status, overflowMin }, ...]
+    function calcEDF(entries, startTimeStr) {
+      if (!entries || entries.length === 0) return [];
+      const start = timeToMin(startTimeStr || '21:00');
+      if (isNaN(start)) return [];
+
+      // EDF: 希望終了時刻（deadline）が早い順にソート
+      const sorted = [...entries].sort((a, b) => {
+        const da = timeToMin(a.timeEnd);
+        const db = timeToMin(b.timeEnd);
+        if (isNaN(da) && isNaN(db)) return 0;
+        if (isNaN(da)) return 1;
+        if (isNaN(db)) return -1;
+        return da - db;
+      });
+
+      let cursor = start;
+      return sorted.map((entry, i) => {
+        const slotStart   = cursor;
+        const slotEnd     = cursor + Number(entry.duration);
+        const deadline    = timeToMin(entry.timeEnd);
+        const overflowMin = isNaN(deadline) ? 0 : Math.max(0, slotEnd - deadline);
+        const status      = overflowMin === 0 ? 'ok' : 'warn';
+        cursor = slotEnd;
+        return { index: i + 1, name: entry.name, duration: Number(entry.duration),
+                 slotStart, slotEnd, deadline, status, overflowMin };
+      });
+    }
+
+    // 丸付き数字（①〜⑳）
+    const CIRCLE_NUMS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩',
+                         '⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
+
     // Firebase config はここに差し込む（Task 4）
     // const firebaseConfig = { ... };
   </script>
