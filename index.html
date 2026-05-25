@@ -431,7 +431,7 @@
     function timeToMin(str) {
       if (!str || !str.includes(':')) return NaN;
       const [h, m] = str.trim().split(':').map(Number);
-      if (isNaN(h) || isNaN(m)) return NaN;
+      if (isNaN(h) || isNaN(m) || h < 0 || m < 0 || m >= 60) return NaN;
       return h * 60 + m;
     }
 
@@ -448,7 +448,8 @@
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     // ══════════════════════════════════════════
@@ -463,6 +464,7 @@
       if (isNaN(start)) return [];
 
       // EDF: 希望終了時刻（deadline）が早い順にソート
+      // 同じ deadline の場合は entries の元の順序（提出順）が維持される（安定ソート）
       const sorted = [...entries].sort((a, b) => {
         const da = timeToMin(a.timeEnd);
         const db = timeToMin(b.timeEnd);
