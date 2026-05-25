@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIA 夜グルコン スケジュール入力</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-theme:   #cbe3ff;
+      --color-accent1: #fff9b0;
+      --color-accent2: #3995a3;
+      --color-text:    #2a2a2a;
+      --color-muted:   #6b7280;
+      --color-white:   #ffffff;
+      --color-bg:      #f0f6ff;
+      --color-border:  #d1e8ff;
+      --radius-card:   16px;
+      --radius-btn:    10px;
+      --radius-bubble: 0 14px 14px 14px;
+      --font-main: 'Shippori Mincho', 'Hiragino Mincho ProN', serif;
+      --shadow-card: 0 2px 10px rgba(57, 149, 163, 0.10);
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--font-main);
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .container { max-width: 520px; margin: 0 auto; padding: 16px; }
+
+    .page-header {
+      background: var(--color-theme);
+      padding: 20px 24px 16px;
+      text-align: center;
+      border-bottom: 2px solid var(--color-border);
+    }
+    .page-header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: var(--color-accent2);
+    }
+    .event-date { font-size: 1.4rem; font-weight: 700; margin-top: 4px; }
+    .deadline-badge {
+      display: inline-block;
+      background: var(--color-accent1);
+      border: 1px solid #e6d900;
+      padding: 3px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      margin-top: 8px;
+      color: #5a5200;
+    }
+
+    .card {
+      background: var(--color-white);
+      border-radius: var(--radius-card);
+      padding: 18px;
+      box-shadow: var(--shadow-card);
+      margin-bottom: 16px;
+      border: 1px solid var(--color-border);
+    }
+    .card-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--color-muted);
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--color-border);
+      padding-bottom: 6px;
+    }
+
+    .bubbles { display: flex; flex-direction: column; gap: 10px; }
+    .bubble { display: flex; align-items: flex-start; gap: 10px; }
+    .bubble-avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: var(--color-accent2);
+      color: var(--color-white);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem; font-weight: 600;
+      flex-shrink: 0;
+    }
+    .bubble-body {
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-bubble);
+      padding: 8px 12px;
+      flex: 1;
+    }
+    .bubble-name { font-size: 0.72rem; color: var(--color-muted); margin-bottom: 2px; }
+    .bubble-text { font-size: 0.9rem; }
+    .bubble-indicator { margin-left: 6px; }
+
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--color-muted);
+      margin-bottom: 5px;
+    }
+    .field input[type="text"],
+    .field input[type="date"] {
+      width: 100%;
+      padding: 9px 13px;
+      border: 1.5px solid var(--color-border);
+      border-radius: 8px;
+      font-family: var(--font-main);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+      background: var(--color-white);
+    }
+    .field input:focus { border-color: var(--color-accent2); }
+
+    .radio-group { display: flex; gap: 10px; }
+    .radio-btn {
+      flex: 1;
+      padding: 10px;
+      border: 1.5px solid var(--color-border);
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      font-family: var(--font-main);
+      font-size: 0.9rem;
+      transition: all 0.15s;
+      background: var(--color-white);
+      user-select: none;
+    }
+    .radio-btn.selected {
+      border-color: var(--color-accent2);
+      background: var(--color-theme);
+      color: var(--color-accent2);
+      font-weight: 600;
+    }
+
+    .time-row { display: flex; align-items: center; gap: 8px; }
+    .time-row input[type="text"] {
+      width: 90px;
+      padding: 9px;
+      text-align: center;
+      border: 1.5px solid var(--color-border);
+      border-radius: 8px;
+      font-family: var(--font-main);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .time-row input[type="text"]:focus { border-color: var(--color-accent2); }
+    .time-row .sep { color: var(--color-muted); font-size: 0.9rem; }
+
+    .forecast {
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+    }
+    .forecast.green  { background: #f0fdf4; border: 1.5px solid #86efac; }
+    .forecast.yellow { background: #fffbeb; border: 1.5px solid #fcd34d; }
+    .forecast.red    { background: #fef2f2; border: 1.5px solid #fca5a5; }
+    .forecast.hidden { display: none; }
+    .forecast-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .forecast-text { font-size: 0.84rem; }
+
+    .btn-primary {
+      width: 100%;
+      padding: 13px;
+      background: var(--color-accent2);
+      color: var(--color-white);
+      border: none;
+      border-radius: var(--radius-btn);
+      font-family: var(--font-main);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: opacity 0.15s;
+      margin-top: 10px;
+    }
+    .btn-primary:hover    { opacity: 0.88; }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-secondary {
+      width: 100%;
+      padding: 11px;
+      background: var(--color-white);
+      color: var(--color-accent2);
+      border: 1.5px solid var(--color-accent2);
+      border-radius: var(--radius-btn);
+      font-family: var(--font-main);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: all 0.15s;
+      margin-top: 8px;
+    }
+    .btn-secondary:hover { background: var(--color-theme); }
+
+    .admin-section {
+      background: var(--color-white);
+      border-radius: var(--radius-card);
+      padding: 18px;
+      box-shadow: var(--shadow-card);
+      margin-bottom: 16px;
+      border-top: 3px solid var(--color-accent2);
+      border-left: 1px solid var(--color-border);
+      border-right: 1px solid var(--color-border);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .admin-badge {
+      display: inline-block;
+      background: var(--color-theme);
+      color: var(--color-accent2);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 20px;
+      margin-bottom: 10px;
+      letter-spacing: 0.06em;
+    }
+
+    .schedule-list {
+      margin-top: 12px;
+      background: var(--color-bg);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 0.84rem;
+      line-height: 2;
+    }
+    .schedule-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .schedule-row:last-child { border-bottom: none; }
+    .status-ok   { color: #16a34a; font-weight: 600; }
+    .status-warn { color: #b45309; font-weight: 600; }
+
+    .login-row { display: flex; gap: 8px; margin-top: 8px; }
+    .login-row input[type="password"] {
+      flex: 1;
+      padding: 9px 13px;
+      border: 1.5px solid var(--color-border);
+      border-radius: 8px;
+      font-family: var(--font-main);
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .login-row input[type="password"]:focus { border-color: var(--color-accent2); }
+    .login-row button {
+      padding: 9px 18px;
+      background: var(--color-accent2);
+      color: var(--color-white);
+      border: none;
+      border-radius: 8px;
+      font-family: var(--font-main);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .settings-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .settings-row .field { margin-bottom: 0; flex: 1; min-width: 120px; }
+
+    .out-of-period {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--color-muted);
+      font-size: 0.95rem;
+      line-height: 2.2;
+    }
+    .out-of-period .icon {
+      font-size: 1.8rem;
+      display: block;
+      margin-bottom: 10px;
+      color: var(--color-accent2);
+    }
+
+    .hidden { display: none !important; }
+    .text-muted { color: var(--color-muted); font-size: 0.82rem; }
+    .mt-8 { margin-top: 8px; }
+    .count-badge {
+      display: inline-block;
+      background: var(--color-accent1);
+      border: 1px solid #e6d900;
+      color: #5a5200;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 1px 8px;
+      border-radius: 10px;
+      margin-left: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-header">
+    <h1>CIA 夜グルコン</h1>
+    <div class="event-date" id="eventDateDisplay">—</div>
+    <div class="deadline-badge" id="deadlineBadge">受付中</div>
+  </div>
+
+  <div class="container">
+
+    <div id="outOfPeriodMsg" class="out-of-period hidden">
+      <span class="icon">&#x23F0;</span>
+      現在、受付期間外です。<br>
+      次回グルコンの3日前より入力できます。
+    </div>
+
+    <div id="participantArea">
+
+      <div class="card">
+        <div class="card-title">参加者の希望（入力済み）<span class="count-badge" id="submissionCount">0</span></div>
+        <div class="bubbles" id="bubblesContainer">
+          <p class="text-muted">まだ入力がありません</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">希望を入力する</div>
+
+        <div class="field">
+          <label>お名前（ニックネームOK）</label>
+          <input type="text" id="inputName" placeholder="例：まいちゃん">
+        </div>
+
+        <div class="field">
+          <label>&#9312; 希望時間</label>
+          <div class="radio-group">
+            <div class="radio-btn" id="btn10" onclick="selectDuration(10)">10分</div>
+            <div class="radio-btn" id="btn20" onclick="selectDuration(20)">20分</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>&#9313; 参加希望の時間帯</label>
+          <div class="time-row">
+            <input type="text" id="inputTimeStart" placeholder="21:00" oninput="onFormInput()">
+            <span class="sep">〜</span>
+            <input type="text" id="inputTimeEnd" placeholder="23:00" oninput="onFormInput()">
+          </div>
+        </div>
+
+        <div class="forecast hidden" id="forecastArea">
+          <div class="forecast-icon" id="forecastIcon"></div>
+          <div class="forecast-text" id="forecastText"></div>
+        </div>
+
+        <button class="btn-primary" id="submitBtn" onclick="submitEntry()" disabled>送信する</button>
+      </div>
+
+    </div>
+
+    <div class="admin-section">
+      <div class="card-title">管理者</div>
+
+      <div id="adminLoginForm">
+        <p class="text-muted">パスワードを入力してください</p>
+        <div class="login-row">
+          <input type="password" id="adminPasswordInput" placeholder="パスワード"
+            onkeydown="if(event.key==='Enter') adminLogin()">
+          <button onclick="adminLogin()">ログイン</button>
+        </div>
+        <p class="text-muted mt-8" id="adminLoginError" style="color:#ef4444"></p>
+      </div>
+
+      <div id="adminPanel" class="hidden">
+        <div class="admin-badge">管理者メニュー</div>
+
+        <div style="margin-bottom:20px">
+          <div class="card-title">グルコン設定</div>
+          <div class="settings-row">
+            <div class="field">
+              <label>開催日</label>
+              <input type="date" id="settingDate">
+            </div>
+            <div class="field">
+              <label>開始時間</label>
+              <input type="text" id="settingStartTime" placeholder="21:00">
+            </div>
+          </div>
+          <button class="btn-secondary" onclick="saveEventSettings()">設定を保存</button>
+          <p class="text-muted mt-8" id="settingSaved"></p>
+        </div>
+
+        <div style="margin-bottom:20px">
+          <div class="card-title">参加者一覧<span class="count-badge" id="adminCount">0</span></div>
+          <div id="adminSubmissionList" class="text-muted">（なし）</div>
+        </div>
+
+        <button class="btn-primary" onclick="generateSchedule()">スケジュール生成</button>
+        <div id="scheduleResult" class="hidden">
+          <div class="schedule-list" id="scheduleList"></div>
+          <button class="btn-secondary" onclick="copySchedule()">スケジュールをコピー</button>
+        </div>
+
+        <button class="btn-secondary" style="margin-top:20px" onclick="adminLogout()">ログアウト</button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+  <script>
+    const ADMIN_PASSWORD = 'cia2024'; // デプロイ前に変更すること
+
+    // Firebase config はここに差し込む（Task 4）
+    // const firebaseConfig = { ... };
+  </script>
+</body>
+</html>
