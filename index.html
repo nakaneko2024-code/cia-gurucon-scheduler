@@ -547,6 +547,8 @@
     db.ref('/cia-gurucon/event').on('value', snap => {
       currentEvent = snap.val() || null;
       updateHeader();
+      checkAccessPeriod();
+      renderBubbles();
     });
 
     function updateHeader() {
@@ -555,11 +557,522 @@
       if (currentEvent && currentEvent.date) {
         dateEl.textContent  = formatEventTitle(currentEvent.date, currentEvent.startTime);
         badgeEl.textContent = formatDeadlineBadge(currentEvent.deadline);
+        if (isAdminLoggedIn()) {
+          const di = document.getElementById('settingDate');
+          const ti = document.getElementById('settingStartTime');
+          if (di && !di.value) di.value = currentEvent.date || '';
+          if (ti && !ti.value) ti.value = currentEvent.startTime || '';
+        }
       } else {
         dateEl.textContent  = '—';
         badgeEl.textContent = '設定待ち';
       }
     }
+
+    // ══════════════════════════════════════════
+    // Task 5: 管理者認証
+    // ══════════════════════════════════════════
+    function isAdminLoggedIn() {
+      return localStorage.getItem('cia_admin') === 'true';
+    }
+
+    function adminLogin() {
+      const input = document.getElementById('adminPasswordInput').value;
+      const errEl = document.getElementById('adminLoginError');
+      if (input === ADMIN_PASSWORD) {
+        localStorage.setItem('cia_admin', 'true');
+        document.getElementById('adminLoginForm').classList.add('hidden');
+        document.getElementById('adminPanel').classList.remove('hidden');
+        errEl.textContent = '';
+        if (currentEvent) {
+          const di = document.getElementById('settingDate');
+          const ti = document.getElementById('settingStartTime');
+          if (di) di.value = currentEvent.date || '';
+          if (ti) ti.value = currentEvent.startTime || '';
+        }
+        checkAccessPeriod();
+        renderAdminSubmissionList();
+      } else {
+        errEl.textContent = 'パスワードが違います';
+      }
+      document.getElementById('adminPasswordInput').value = '';
+    }
+
+    function adminLogout() {
+      localStorage.removeItem('cia_admin');
+      document.getElementById('adminLoginForm').classList.remove('hidden');
+      document.getElementById('adminPanel').classList.add('hidden');
+      checkAccessPeriod();
+    }
+
+    // ══════════════════════════════════════════
+    // Task 6: アクセス期間制御
+    // ══════════════════════════════════════════
+    function checkAccessPeriod() {
+      const participantArea = document.getElementById('participantArea');
+      const outOfPeriodMsg  = document.getElementById('outOfPeriodMsg');
+      if (isAdminLoggedIn()) {
+        participantArea.classList.remove('hidden');
+        outOfPeriodMsg.classList.add('hidden');
+        return;
+      }
+      if (!currentEvent || !currentEvent.date) {
+        participantArea.classList.add('hidden');
+        outOfPeriodMsg.classList.remove('hidden');
+        return;
+      }
+      const now       = new Date();
+      const eventDate = new Date(currentEvent.date + 'T00:00:00');
+      const openDate  = new Date(eventDate);
+      openDate.setDate(openDate.getDate() - 3);
+      const deadline  = new Date(eventDate);
+      deadline.setDate(deadline.getDate() - 1);
+      deadline.setHours(23, 59, 59, 999);
+      const inPeriod = now >= openDate && now <= deadline;
+      participantArea.classList.toggle('hidden', !inPeriod);
+      outOfPeriodMsg.classList.toggle('hidden', inPeriod);
+    }
+
+    // ══════════════════════════════════════════
+    // Task 7: 参加者吹き出しのリアルタイム表示
+    // ══════════════════════════════════════════
+    const AVATAR_COLORS = [
+      '#3995a3','#5b8dd9','#9b72cf','#d95b8d',
+      '#d9885b','#8dd95b','#5bd9c4','#8589d9'
+    ];
+
+    function getAvatarColor(name) {
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+    }
+
+    db.ref('/cia-gurucon/submissions').on('value', snap => {
+      submissions = snap.val() || {};
+      renderBubbles();
+      updateForecast();
+      renderAdminSubmissionList();
+    });
+
+    function renderBubbles() {
+      const container = document.getElementById('bubblesContainer');
+      const countEl   = document.getElementById('submissionCount');
+      const entries   = Object.values(submissions)
+        .sort((a, b) => a.submittedAt - b.submittedAt);
+
+      countEl.textContent = entries.length;
+
+      // コンテナをクリア
+      while (container.firstChild) container.removeChild(container.firstChild);
+
+      if (entries.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'text-muted';
+        p.textContent = 'まだ入力がありません';
+        container.appendChild(p);
+        return;
+      }
+
+      const startTime    = currentEvent ? (currentEvent.startTime || '21:00') : '21:00';
+      const tempSchedule = calcEDF(entries, startTime);
+
+      entries.forEach(entry => {
+        const row       = tempSchedule.find(r => r.name === entry.name);
+        const indicator = row ? (row.status === 'ok' ? '🟢' : '🔴') : '🟡';
+
+        // .bubble
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'bubble';
+
+        // .bubble-avatar
+        const avatarDiv = document.createElement('div');
+        avatarDiv.className = 'bubble-avatar';
+        avatarDiv.style.background = getAvatarColor(entry.name);
+        avatarDiv.textContent = entry.name.charAt(0);
+
+        // .bubble-body
+        const bodyDiv = document.createElement('div');
+        bodyDiv.className = 'bubble-body';
+
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'bubble-name';
+        nameDiv.textContent = entry.name;
+
+        const textDiv = document.createElement('div');
+        textDiv.className = 'bubble-text';
+        textDiv.textContent = '①' + Number(entry.duration) + '分　②' +
+          entry.timeStart + '〜' + entry.timeEnd + ' ';
+
+        const indSpan = document.createElement('span');
+        indSpan.className = 'bubble-indicator';
+        indSpan.textContent = indicator;
+        textDiv.appendChild(indSpan);
+
+        bodyDiv.appendChild(nameDiv);
+        bodyDiv.appendChild(textDiv);
+        bubbleDiv.appendChild(avatarDiv);
+        bubbleDiv.appendChild(bodyDiv);
+        container.appendChild(bubbleDiv);
+      });
+    }
+
+    // ══════════════════════════════════════════
+    // Task 8: 参加者フォームと 🟢🔴 リアルタイム判定
+    // ══════════════════════════════════════════
+    let selectedDuration = 0;
+
+    function selectDuration(min) {
+      selectedDuration = min;
+      document.getElementById('btn10').classList.toggle('selected', min === 10);
+      document.getElementById('btn20').classList.toggle('selected', min === 20);
+      onFormInput();
+    }
+
+    function validateForm() {
+      const name  = document.getElementById('inputName').value.trim();
+      const start = document.getElementById('inputTimeStart').value.trim();
+      const end   = document.getElementById('inputTimeEnd').value.trim();
+      return name.length > 0
+        && selectedDuration > 0
+        && !isNaN(timeToMin(start))
+        && !isNaN(timeToMin(end))
+        && timeToMin(start) < timeToMin(end);
+    }
+
+    function onFormInput() {
+      document.getElementById('submitBtn').disabled = !validateForm();
+      updateForecast();
+    }
+
+    function updateForecast() {
+      const forecastArea = document.getElementById('forecastArea');
+      const forecastIcon = document.getElementById('forecastIcon');
+      const forecastText = document.getElementById('forecastText');
+
+      const name  = document.getElementById('inputName').value.trim();
+      const start = document.getElementById('inputTimeStart').value.trim();
+      const end   = document.getElementById('inputTimeEnd').value.trim();
+
+      if (!name || selectedDuration === 0 || isNaN(timeToMin(start)) || isNaN(timeToMin(end))) {
+        forecastArea.className = 'forecast hidden';
+        return;
+      }
+
+      const currentEntry = { name, duration: selectedDuration, timeStart: start, timeEnd: end };
+      const allEntries   = [...Object.values(submissions), currentEntry];
+      const eventStart   = currentEvent ? (currentEvent.startTime || '21:00') : '21:00';
+      const schedule     = calcEDF(allEntries, eventStart);
+      // 末尾から探す（同名が既存の場合、入力中の自分は末尾に追加される）
+      const mine         = [...schedule].reverse().find(r => r.name === name);
+
+      if (!mine) { forecastArea.className = 'forecast hidden'; return; }
+
+      // DOM で組み立て（textContent のみ使用）
+      while (forecastText.firstChild) forecastText.removeChild(forecastText.firstChild);
+
+      if (mine.status === 'ok') {
+        forecastArea.className = 'forecast green';
+        forecastIcon.textContent = '🟢';
+        const strong = document.createElement('strong');
+        strong.textContent = '希望通りに入れそうです';
+        const span = document.createElement('span');
+        span.style.color = '#555';
+        span.style.display = 'block';
+        span.textContent = minToTime(mine.slotStart) + '〜' + minToTime(mine.slotEnd) + ' に割り当て予定';
+        forecastText.appendChild(strong);
+        forecastText.appendChild(span);
+      } else {
+        forecastArea.className = 'forecast red';
+        forecastIcon.textContent = '🔴';
+        const strong = document.createElement('strong');
+        strong.textContent = '希望時間を超える可能性があります';
+        const span = document.createElement('span');
+        span.style.color = '#555';
+        span.style.display = 'block';
+        span.textContent = '現時点で ' + mine.overflowMin + '分オーバーの見込み';
+        forecastText.appendChild(strong);
+        forecastText.appendChild(span);
+      }
+    }
+
+    document.getElementById('inputName').addEventListener('input', onFormInput);
+
+    // ══════════════════════════════════════════
+    // Task 9: フォーム送信（Firebase 書き込み）
+    // ══════════════════════════════════════════
+    async function submitEntry() {
+      if (!validateForm()) return;
+
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled    = true;
+      submitBtn.textContent = '送信中...';
+
+      const entry = {
+        name:        document.getElementById('inputName').value.trim(),
+        duration:    selectedDuration,
+        timeStart:   document.getElementById('inputTimeStart').value.trim(),
+        timeEnd:     document.getElementById('inputTimeEnd').value.trim(),
+        submittedAt: Date.now()
+      };
+
+      try {
+        await db.ref('/cia-gurucon/submissions').push().set(entry);
+
+        document.getElementById('inputName').value      = '';
+        document.getElementById('inputTimeStart').value = '';
+        document.getElementById('inputTimeEnd').value   = '';
+        selectedDuration = 0;
+        document.getElementById('btn10').classList.remove('selected');
+        document.getElementById('btn20').classList.remove('selected');
+        document.getElementById('forecastArea').className = 'forecast hidden';
+
+        submitBtn.textContent = '送信しました！';
+        setTimeout(() => {
+          submitBtn.textContent = '送信する';
+          submitBtn.disabled    = true;
+        }, 2000);
+
+      } catch (err) {
+        console.error('submitEntry error:', err);
+        alert('送信に失敗しました。もう一度お試しください。');
+        submitBtn.disabled    = false;
+        submitBtn.textContent = '送信する';
+      }
+    }
+
+    // ══════════════════════════════════════════
+    // Task 10: 管理者パネル - グルコン設定・参加者一覧
+    // ══════════════════════════════════════════
+    async function saveEventSettings() {
+      const dateVal = document.getElementById('settingDate').value;
+      const timeVal = document.getElementById('settingStartTime').value.trim();
+      const savedEl = document.getElementById('settingSaved');
+
+      if (!dateVal || !timeVal) {
+        savedEl.textContent = '日付と開始時間を入力してください';
+        savedEl.style.color = '#ef4444';
+        return;
+      }
+
+      const eventDate    = new Date(dateVal + 'T00:00:00');
+      const openDate     = new Date(eventDate);
+      openDate.setDate(openDate.getDate() - 3);
+      const openDateStr  = openDate.toISOString().slice(0, 10);
+      const deadlineDate = new Date(eventDate);
+      deadlineDate.setDate(deadlineDate.getDate() - 1);
+      const deadlineStr  = deadlineDate.toISOString().slice(0, 10) + 'T23:59';
+
+      try {
+        await db.ref('/cia-gurucon/event').set({
+          date: dateVal, startTime: timeVal,
+          openDate: openDateStr, deadline: deadlineStr
+        });
+        savedEl.textContent =
+          '保存しました（開放：' + openDateStr + '　締切：' + deadlineStr.replace('T', ' ') + '）';
+        savedEl.style.color = '#16a34a';
+      } catch (err) {
+        console.error('saveEventSettings error:', err);
+        savedEl.textContent = '保存に失敗しました';
+        savedEl.style.color = '#ef4444';
+      }
+    }
+
+    function renderAdminSubmissionList() {
+      const listEl  = document.getElementById('adminSubmissionList');
+      const countEl = document.getElementById('adminCount');
+      if (!listEl) return;
+
+      const entries = Object.values(submissions)
+        .sort((a, b) => a.submittedAt - b.submittedAt);
+      countEl.textContent = entries.length;
+
+      // コンテナをクリア
+      while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+
+      if (entries.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'text-muted';
+        p.textContent = '（なし）';
+        listEl.appendChild(p);
+        return;
+      }
+
+      const totalMin = entries.reduce((sum, e) => sum + Number(e.duration), 0);
+      const h = Math.floor(totalMin / 60);
+      const m = totalMin % 60;
+
+      // テーブルを DOM で構築（ユーザーデータは textContent で設定）
+      const table = document.createElement('table');
+      table.style.cssText = 'width:100%;border-collapse:collapse;font-size:0.83rem';
+
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      headerRow.style.borderBottom = '2px solid var(--color-border)';
+      ['#', '名前', '時間', '希望帯'].forEach((text, i) => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        th.style.cssText = 'text-align:' + (i === 2 ? 'center' : 'left') +
+          ';padding:4px 6px;color:var(--color-muted);font-weight:600';
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      entries.forEach((e, i) => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--color-border)';
+
+        const tdNum  = document.createElement('td');
+        tdNum.textContent = i + 1;
+        tdNum.style.cssText = 'padding:4px 6px;color:var(--color-muted)';
+
+        const tdName = document.createElement('td');
+        tdName.textContent = e.name;
+        tdName.style.padding = '4px 6px';
+
+        const tdDur  = document.createElement('td');
+        tdDur.textContent = Number(e.duration) + '分';
+        tdDur.style.cssText = 'padding:4px 6px;text-align:center';
+
+        const tdTime = document.createElement('td');
+        tdTime.textContent = e.timeStart + '〜' + e.timeEnd;
+        tdTime.style.padding = '4px 6px';
+
+        tr.appendChild(tdNum);
+        tr.appendChild(tdName);
+        tr.appendChild(tdDur);
+        tr.appendChild(tdTime);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+
+      const totalP = document.createElement('p');
+      totalP.className = 'text-muted mt-8';
+      totalP.textContent = '合計 ' + totalMin + '分（' + h + '時間' + m + '分）';
+
+      listEl.appendChild(table);
+      listEl.appendChild(totalP);
+    }
+
+    // ══════════════════════════════════════════
+    // Task 11: スケジュール生成・表示と LINE コピー
+    // ══════════════════════════════════════════
+    function generateSchedule() {
+      const entries    = Object.values(submissions).sort((a, b) => a.submittedAt - b.submittedAt);
+      const eventStart = currentEvent ? (currentEvent.startTime || '21:00') : '21:00';
+      const schedule   = calcEDF(entries, eventStart);
+      const resultEl   = document.getElementById('scheduleResult');
+      const listEl     = document.getElementById('scheduleList');
+
+      // コンテナをクリア
+      while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+
+      if (schedule.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'text-muted';
+        p.textContent = '参加者がまだいません';
+        listEl.appendChild(p);
+        resultEl.classList.remove('hidden');
+        return;
+      }
+
+      schedule.forEach((row, i) => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'schedule-row';
+
+        const leftSpan = document.createElement('span');
+        leftSpan.textContent = (CIRCLE_NUMS[i] || '(' + (i + 1) + ')') + ' ' +
+          minToTime(row.slotStart) + '〜' + minToTime(row.slotEnd) +
+          '（' + row.duration + '分）' + row.name;
+
+        const statusSpan = document.createElement('span');
+        if (row.status === 'ok') {
+          statusSpan.className = 'status-ok';
+          statusSpan.textContent = '✓';
+        } else {
+          statusSpan.className = 'status-warn';
+          statusSpan.textContent = '⚠ ' + row.overflowMin + '分オーバー';
+        }
+
+        rowDiv.appendChild(leftSpan);
+        rowDiv.appendChild(statusSpan);
+        listEl.appendChild(rowDiv);
+      });
+
+      resultEl.classList.remove('hidden');
+    }
+
+    function copySchedule() {
+      const entries    = Object.values(submissions).sort((a, b) => a.submittedAt - b.submittedAt);
+      const eventStart = currentEvent ? (currentEvent.startTime || '21:00') : '21:00';
+      const schedule   = calcEDF(entries, eventStart);
+
+      if (!currentEvent || !currentEvent.date) {
+        alert('グルコン日程が設定されていません');
+        return;
+      }
+
+      const d      = new Date(currentEvent.date + 'T00:00:00');
+      const wds    = ['日','月','火','水','木','金','土'];
+      const dateStr = (d.getMonth() + 1) + '/' + d.getDate() + '(' + wds[d.getDay()] + ')';
+
+      const lines = [
+        '夜グルコン',
+        dateStr + ' ' + currentEvent.startTime + '〜',
+        '',
+        '【マンスリースケジュール決定のお知らせ】',
+        '',
+        ...schedule.map((row, i) => {
+          const num    = CIRCLE_NUMS[i] || '(' + (i + 1) + ')';
+          const status = row.status === 'ok' ? '✅' : '⚠️ ' + row.overflowMin + '分オーバー';
+          return num + ' ' + minToTime(row.slotStart) + '〜' + minToTime(row.slotEnd) +
+            '（' + row.duration + '分）' + row.name + '　' + status;
+        }),
+        '',
+        '上記のスケジュールがご希望と違っていましたら、',
+        'お気軽にお知らせください😊',
+        'よろしくお願いいたします。'
+      ];
+
+      const text = lines.join('\n');
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => flashCopyBtn());
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity  = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        flashCopyBtn();
+      }
+    }
+
+    function flashCopyBtn() {
+      const btn = document.querySelector('[onclick="copySchedule()"]');
+      if (!btn) return;
+      const orig = btn.textContent;
+      btn.textContent = 'コピーしました！';
+      setTimeout(() => { btn.textContent = orig; }, 2000);
+    }
+
+    // ══════════════════════════════════════════
+    // ページ読み込み時のセッション復元
+    // ══════════════════════════════════════════
+    (function initSession() {
+      if (isAdminLoggedIn()) {
+        document.getElementById('adminLoginForm').classList.add('hidden');
+        document.getElementById('adminPanel').classList.remove('hidden');
+      }
+      // checkAccessPeriod は Firebase イベントデータ取得後に呼ばれる
+    })();
   </script>
 </body>
 </html>
