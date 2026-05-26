@@ -463,7 +463,7 @@
   <div class="page-header">
     <h1>CIA グルコン</h1>
     <div id="announcementBanner" class="announcement-banner hidden"></div>
-    <div class="tab-nav">
+    <div class="tab-nav hidden" id="tabNav">
       <div class="tab-row">
         <button class="tab-btn active" id="tabBtnVote" onclick="switchTab('vote')">日程投票</button>
       </div>
@@ -566,9 +566,15 @@
       <div id="voteAdminPanel" class="admin-section hidden">
         <div class="admin-badge">管理者メニュー（日程投票）</div>
 
+        <!-- 参加者の回答一覧（誰がどのスロットを入れたか・管理者のみ） -->
+        <div id="voteAdminEntryList" style="margin-bottom:16px">
+          <div class="card-title">参加者の回答一覧（運営のみ表示）</div>
+          <div id="voteAdminEntryListContent" class="text-muted">（なし）</div>
+        </div>
+
         <div style="margin-bottom:16px">
           <div class="card-title">
-            投票集計
+            投票集計（匿名）
             <button onclick="setVoteFilter('all')"   id="filterAll"   style="margin-left:8px;padding:2px 10px;border-radius:12px;border:1px solid var(--color-border);background:var(--color-accent2);color:#fff;font-size:0.72rem;cursor:pointer;">全時間帯</button>
             <button onclick="setVoteFilter('day')"   id="filterDay"   style="padding:2px 10px;border-radius:12px;border:1px solid var(--color-border);background:var(--color-white);font-size:0.72rem;cursor:pointer;">昼帯(9-15)</button>
             <button onclick="setVoteFilter('night')" id="filterNight" style="padding:2px 10px;border-radius:12px;border:1px solid var(--color-border);background:var(--color-white);font-size:0.72rem;cursor:pointer;">夜帯(20-24)</button>
@@ -929,6 +935,7 @@
         show(voteForm); show(voteAdm);
         if (!document.querySelector('#voteGrid .vote-cell')) buildVoteGrid('voteGrid', false);
         if (!document.querySelector('#voteHeatmap .vote-cell')) buildVoteGrid('voteHeatmap', true);
+        renderVoteAdminEntryList();
         return;
       }
 
@@ -1117,6 +1124,7 @@
       if (input === MEMBER_PASSWORD) {
         localStorage.setItem('cia_member', 'true');
         errEl.textContent = '';
+        showTabNav();             // タブナビを表示
         checkVotePeriod();        // 投票フォームを表示
         checkAccessPeriod();      // 夜グルコンタブも同期
         checkMorningAccessPeriod(); // 昼グルコンタブも同期
@@ -1138,6 +1146,7 @@
       const errEl = document.getElementById('adminLoginError');
       if (input === ADMIN_PASSWORD) {
         localStorage.setItem('cia_admin', 'true');
+        showTabNav();             // タブナビを表示
         document.getElementById('adminLoginForm').classList.add('hidden');
         document.getElementById('adminPanel').classList.remove('hidden');
         errEl.textContent = '';
@@ -1639,6 +1648,7 @@
       voteData = snap.val() || {};
       renderVoteAggregate();
       renderVoteComments();
+      renderVoteAdminEntryList(); // 管理者向け：誰がどのスロットを入れたか
     });
 
     // 投票結果（日程発表）の購読
@@ -2253,6 +2263,7 @@ ${thisMonth}月15日（${dow15}）まで
       const errEl = document.getElementById('morningAdminLoginError');
       if (input === ADMIN_PASSWORD) {
         localStorage.setItem('cia_admin', 'true');
+        showTabNav();             // タブナビを表示
         document.getElementById('morningAdminLoginForm').classList.add('hidden');
         document.getElementById('morningAdminPanel').classList.remove('hidden');
         if (morningEvent) {
@@ -2531,9 +2542,98 @@ ${thisMonth}月15日（${dow15}）まで
     }
 
     // ══════════════════════════════════════════
+    // タブナビ表示（ログイン後に呼ぶ）
+    // ══════════════════════════════════════════
+    function showTabNav() {
+      const nav = document.getElementById('tabNav');
+      if (nav) nav.classList.remove('hidden');
+    }
+
+    // ══════════════════════════════════════════
+    // 参加者の回答一覧（管理者用・誰がどのスロットか）
+    // ══════════════════════════════════════════
+    function renderVoteAdminEntryList() {
+      const listEl = document.getElementById('voteAdminEntryListContent');
+      if (!listEl) return;
+      while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+
+      const entries = Object.entries(voteData)
+        .sort(([, a], [, b]) => (a.submittedAt || 0) - (b.submittedAt || 0));
+
+      if (entries.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'text-muted';
+        p.textContent = 'まだ回答がありません';
+        listEl.appendChild(p);
+        return;
+      }
+
+      const nextMonth = getNextMonthKey();
+      const [ny, nm]  = nextMonth.split('-').map(Number);
+
+      entries.forEach(([id, entry], idx) => {
+        const item = document.createElement('div');
+        item.style.cssText = 'padding:8px 0;border-bottom:1px solid var(--color-border)';
+
+        // ── 名前（コメント） ──
+        const header = document.createElement('div');
+        header.style.cssText = 'font-size:0.85rem;font-weight:600;margin-bottom:4px;color:var(--color-text)';
+        header.textContent = (idx + 1) + '. ' + (entry.comment || '（コメントなし）');
+        item.appendChild(header);
+
+        // ── スロット集約 ──
+        if (entry.slots) {
+          const oSlots = [];
+          const dSlots = [];
+
+          // 日付順にソートして出力
+          const sortedDays = Object.keys(entry.slots).sort();
+          sortedDays.forEach(day => {
+            const dayNum  = parseInt(day, 10);
+            const dateObj = new Date(ny, nm - 1, dayNum);
+            const dayLabel = nm + '/' + dayNum + '(' + DOW_JA[dateObj.getDay()] + ')';
+            const hours = entry.slots[day];
+            const sortedHours = Object.keys(hours).sort((a, b) => parseInt(a) - parseInt(b));
+            sortedHours.forEach(hour => {
+              const state = hours[hour];
+              const label = dayLabel + ' ' + parseInt(hour, 10) + '時';
+              if (state === 'o') oSlots.push(label);
+              else if (state === 'd') dSlots.push(label);
+            });
+          });
+
+          if (oSlots.length > 0) {
+            const p = document.createElement('p');
+            p.style.cssText = 'font-size:0.78rem;color:#1a6fa8;margin:2px 0;line-height:1.6';
+            p.textContent = '○ ' + oSlots.join('　');
+            item.appendChild(p);
+          }
+          if (dSlots.length > 0) {
+            const p = document.createElement('p');
+            p.style.cssText = 'font-size:0.78rem;color:#8a7000;margin:2px 0;line-height:1.6';
+            p.textContent = '△ ' + dSlots.join('　');
+            item.appendChild(p);
+          }
+          if (oSlots.length === 0 && dSlots.length === 0) {
+            const p = document.createElement('p');
+            p.style.cssText = 'font-size:0.78rem;color:var(--color-muted);margin:2px 0';
+            p.textContent = 'スロット未入力';
+            item.appendChild(p);
+          }
+        }
+
+        listEl.appendChild(item);
+      });
+    }
+
+    // ══════════════════════════════════════════
     // ページ読み込み時のセッション復元
     // ══════════════════════════════════════════
     (function initSession() {
+      // ログイン済みならタブナビを表示
+      if (isAdminLoggedIn() || isMemberLoggedIn()) {
+        showTabNav();
+      }
       if (isAdminLoggedIn()) {
         document.getElementById('adminLoginForm').classList.add('hidden');
         document.getElementById('adminPanel').classList.remove('hidden');
@@ -2543,6 +2643,8 @@ ${thisMonth}月15日（${dow15}）まで
         if (mlf) mlf.classList.add('hidden');
         if (mlp) mlp.classList.remove('hidden');
       }
+      // 投票タブの表示状態を初期化（tab-vote はページ読み込み時からアクティブなので手動で呼ぶ）
+      checkVotePeriod();
       // checkAccessPeriod は Firebase イベントデータ取得後に呼ばれる
     })();
   </script>
