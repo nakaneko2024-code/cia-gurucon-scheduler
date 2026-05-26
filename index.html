@@ -305,17 +305,175 @@
       border-radius: 10px;
       margin-left: 6px;
     }
+
+    /* ══ タブナビゲーション ══════════════════════ */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+      margin-top: 12px;
+    }
+    .tab-btn {
+      padding: 7px 16px;
+      border: 1.5px solid rgba(255,255,255,0.6);
+      border-radius: 20px;
+      background: rgba(255,255,255,0.35);
+      color: var(--color-accent2);
+      font-family: var(--font-main);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: all 0.15s;
+    }
+    .tab-btn.active {
+      background: var(--color-accent2);
+      color: var(--color-white);
+      border-color: var(--color-accent2);
+    }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ══ 発表バナー ══════════════════════════════ */
+    .announcement-banner {
+      background: var(--color-accent1);
+      border: 1.5px solid #e6d900;
+      border-radius: 10px;
+      padding: 10px 16px;
+      margin: 10px 16px 0;
+      font-size: 0.86rem;
+      color: #5a5200;
+      text-align: center;
+      line-height: 1.8;
+    }
+
+    /* ══ 投票グリッド ════════════════════════════ */
+    .vote-grid-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: 0 -4px;
+      padding: 0 4px 4px;
+    }
+    .vote-grid {
+      display: grid;
+      grid-template-columns: 38px repeat(16, 30px);
+      gap: 1px;
+      background: var(--color-border);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      overflow: hidden;
+      min-width: fit-content;
+    }
+    .vote-grid-hdr {
+      height: 26px;
+      background: var(--color-theme);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: var(--color-accent2);
+    }
+    .vote-grid-day {
+      height: 28px;
+      background: var(--color-white);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      color: var(--color-muted);
+      font-weight: 600;
+      line-height: 1.2;
+    }
+    .vote-cell {
+      height: 28px;
+      background: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.62rem;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.1s;
+      position: relative;
+    }
+    .vote-cell.state-o { background: #a8d8ff; }
+    .vote-cell.state-d { background: #fff0a0; }
+    .vote-cell .cell-state {
+      font-size: 0.66rem;
+      font-weight: 600;
+      color: #999;
+      line-height: 1;
+    }
+    .vote-cell.state-o .cell-state { color: #1a6fa8; }
+    .vote-cell.state-d .cell-state { color: #8a7000; }
+    .vote-cell .cell-count {
+      position: absolute;
+      bottom: 1px;
+      right: 2px;
+      font-size: 0.55rem;
+      color: var(--color-accent2);
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    /* ══ コメント一覧 ════════════════════════════ */
+    .vote-comment-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .vote-comment-item {
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+    }
+
+    /* ══ ヒートマップ（管理者用） ════════════════ */
+    .heatmap-cell-0 { background: #f0f0f0; }
+    .heatmap-cell-1 { background: #cbe3ff; }
+    .heatmap-cell-2 { background: #7fc1f0; }
+    .heatmap-cell-3 { background: #3a9fd8; color: #fff; }
+    .heatmap-cell-4 { background: #1a7ab8; color: #fff; }
+    .heatmap-cell-5 { background: #0d5a96; color: #fff; }
   </style>
 </head>
 <body>
 
   <div class="page-header">
-    <h1>CIA 夜グルコン</h1>
-    <div class="event-date" id="eventDateDisplay">—</div>
-    <div class="deadline-badge" id="deadlineBadge">受付中</div>
+    <h1>CIA グルコン</h1>
+    <div id="announcementBanner" class="announcement-banner hidden"></div>
+    <div class="tab-nav">
+      <button class="tab-btn active" id="tabBtnVote"    onclick="switchTab('vote')">日程投票</button>
+      <button class="tab-btn"        id="tabBtnMorning" onclick="switchTab('morning')">昼グルコン</button>
+      <button class="tab-btn"        id="tabBtnEvening" onclick="switchTab('evening')">夜グルコン</button>
+    </div>
   </div>
 
   <div class="container">
+
+    <!-- ═══ 日程投票タブ ═══════════════════════ -->
+    <div id="tab-vote" class="tab-pane active">
+      <p class="text-muted" style="text-align:center;padding:40px 20px">（日程投票 読み込み中…）</p>
+    </div>
+
+    <!-- ═══ 昼グルコンタブ ══════════════════════ -->
+    <div id="tab-morning" class="tab-pane">
+      <p class="text-muted" style="text-align:center;padding:40px 20px">（昼グルコン 読み込み中…）</p>
+    </div>
+
+    <!-- ═══ 夜グルコンタブ ══════════════════════ -->
+    <div id="tab-evening" class="tab-pane">
+
+    <!-- 夜グルコン ヘッダー情報 -->
+    <div style="text-align:center;padding:12px 16px 0;color:var(--color-accent2)">
+      <div class="event-date" id="eventDateDisplay" style="font-size:1.3rem;font-weight:700">—</div>
+      <div class="deadline-badge" id="deadlineBadge">受付中</div>
+    </div>
 
     <div id="outOfPeriodMsg" class="out-of-period hidden">
       <span class="icon">&#x23F0;</span>
@@ -428,7 +586,9 @@
 
     </div>
 
-  </div>
+    </div><!-- /#tab-evening -->
+
+  </div><!-- /.container -->
 
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -436,6 +596,22 @@
   <script>
     const ADMIN_PASSWORD  = 'cia0000'; // 管理者パスワード
     const MEMBER_PASSWORD = 'cia';     // 参加者パスワード（生徒さん用）
+
+    // ══════════════════════════════════════════
+    // タブ切り替え
+    // ══════════════════════════════════════════
+    let currentTab = 'vote';
+
+    function switchTab(tab) {
+      currentTab = tab;
+      ['vote', 'morning', 'evening'].forEach(t => {
+        const pane = document.getElementById('tab-' + t);
+        const btn  = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (pane) pane.classList.toggle('active', t === tab);
+        if (btn)  btn.classList.toggle('active', t === tab);
+      });
+      if (tab === 'vote') checkVotePeriod();
+    }
 
     // ══════════════════════════════════════════
     // 時刻ユーティリティ
