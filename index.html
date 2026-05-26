@@ -978,6 +978,7 @@
           if (ti) ti.value = currentEvent.startTime || '';
         }
         checkAccessPeriod();
+        checkVotePeriod();
         renderAdminSubmissionList();
       } else {
         errEl.textContent = 'パスワードが違います';
@@ -1450,6 +1451,464 @@
       const orig = btn.textContent;
       btn.textContent = 'コピーしました！';
       setTimeout(() => { btn.textContent = orig; }, 2000);
+    }
+
+    // ══════════════════════════════════════════
+    // 日程投票：状態変数・Firebase購読
+    // ══════════════════════════════════════════
+    let voteData   = {};      // { [id]: { comment, password, slots, submittedAt } }
+    let mySlots    = {};      // { [dayStr]: { [hourStr]: 'o'|'d' } }
+    let myVoteId   = null;    // 編集中のエントリID
+    let voteFilter = 'all';   // 'all'|'day'|'night'
+
+    const VOTE_HOURS = [9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24];
+
+    // 投票データのリアルタイム購読
+    db.ref('/cia-gurucon/vote/' + getNextMonthKey() + '/entries').on('value', snap => {
+      voteData = snap.val() || {};
+      renderVoteAggregate();
+      renderVoteComments();
+    });
+
+    // 投票結果（日程発表）の購読
+    db.ref('/cia-gurucon/vote/' + getNextMonthKey() + '/result').on('value', snap => {
+      renderAnnouncementBanner(snap.val());
+    });
+
+    // ══════════════════════════════════════════
+    // タイムライングリッド生成
+    // ══════════════════════════════════════════
+    function buildVoteGrid(containerId, isHeatmap) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      const totalDays = getNextMonthDays();
+      const nextMonth = getNextMonthKey();
+      const [ny, nm]  = nextMonth.split('-').map(Number);
+
+      while (container.firstChild) container.removeChild(container.firstChild);
+
+      // ── ヘッダー行（コーナー + 時間ラベル） ──
+      const cornerDiv = document.createElement('div');
+      cornerDiv.className = 'vote-grid-hdr';
+      cornerDiv.textContent = '';
+      container.appendChild(cornerDiv);
+
+      VOTE_HOURS.forEach(h => {
+        const hdrDiv = document.createElement('div');
+        hdrDiv.className = 'vote-grid-hdr';
+        hdrDiv.textContent = h === 24 ? '0' : String(h);
+        container.appendChild(hdrDiv);
+      });
+
+      // ── 各日の行 ──
+      for (let day = 1; day <= totalDays; day++) {
+        const dayStr  = String(day).padStart(2, '0');
+        const dateObj = new Date(ny, nm - 1, day);
+        const dowStr  = DOW_JA[dateObj.getDay()];
+
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'vote-grid-day';
+        if (dateObj.getDay() === 0) dayDiv.style.color = '#ef4444';
+        if (dateObj.getDay() === 6) dayDiv.style.color = '#3b82f6';
+        const dayLine1 = document.createElement('span');
+        dayLine1.textContent = nm + '/' + day;
+        const dayLine2 = document.createElement('span');
+        dayLine2.textContent = dowStr;
+        dayDiv.appendChild(dayLine1);
+        dayDiv.appendChild(dayLine2);
+        container.appendChild(dayDiv);
+
+        VOTE_HOURS.forEach(h => {
+          const hourStr = String(h).padStart(2, '0');
+          const cell    = document.createElement('div');
+          cell.className = 'vote-cell';
+
+          if (isHeatmap) {
+            cell.dataset.day  = dayStr;
+            cell.dataset.hour = hourStr;
+            cell.id = 'hm-' + dayStr + '-' + hourStr;
+            const countSpan = document.createElement('span');
+            countSpan.style.cssText = 'font-size:0.72rem;font-weight:700;';
+            cell.appendChild(countSpan);
+          } else {
+            cell.dataset.day  = dayStr;
+            cell.dataset.hour = hourStr;
+            cell.id = 'vc-' + dayStr + '-' + hourStr;
+            cell.onclick = () => toggleSlot(dayStr, hourStr);
+
+            const stateSpan = document.createElement('span');
+            stateSpan.className = 'cell-state';
+            stateSpan.textContent = '';
+            cell.appendChild(stateSpan);
+
+            const countSpan = document.createElement('span');
+            countSpan.className = 'cell-count';
+            countSpan.textContent = '';
+            cell.appendChild(countSpan);
+
+            const state = (mySlots[dayStr] && mySlots[dayStr][hourStr]) || 'x';
+            applyCellState(cell, state);
+          }
+          container.appendChild(cell);
+        });
+      }
+    }
+
+    function applyCellState(cell, state) {
+      cell.classList.remove('state-o', 'state-d');
+      const stateSpan = cell.querySelector('.cell-state');
+      if (state === 'o') {
+        cell.classList.add('state-o');
+        if (stateSpan) stateSpan.textContent = '○';
+      } else if (state === 'd') {
+        cell.classList.add('state-d');
+        if (stateSpan) stateSpan.textContent = '△';
+      } else {
+        if (stateSpan) stateSpan.textContent = '';
+      }
+    }
+
+    // ══════════════════════════════════════════
+    // スロットトグル（×→○→△→×）
+    // ══════════════════════════════════════════
+    function toggleSlot(dayStr, hourStr) {
+      if (!mySlots[dayStr]) mySlots[dayStr] = {};
+      const current = mySlots[dayStr][hourStr] || 'x';
+      const next    = current === 'x' ? 'o' : current === 'o' ? 'd' : 'x';
+      if (next === 'x') {
+        delete mySlots[dayStr][hourStr];
+        if (Object.keys(mySlots[dayStr]).length === 0) delete mySlots[dayStr];
+      } else {
+        mySlots[dayStr][hourStr] = next;
+      }
+      const cell = document.getElementById('vc-' + dayStr + '-' + hourStr);
+      if (cell) applyCellState(cell, next);
+    }
+
+    function reflectMySlotsOnGrid() {
+      const totalDays = getNextMonthDays();
+      for (let d = 1; d <= totalDays; d++) {
+        const dayStr = String(d).padStart(2, '0');
+        VOTE_HOURS.forEach(h => {
+          const hourStr = String(h).padStart(2, '0');
+          const state   = (mySlots[dayStr] && mySlots[dayStr][hourStr]) || 'x';
+          const cell    = document.getElementById('vc-' + dayStr + '-' + hourStr);
+          if (cell) applyCellState(cell, state);
+        });
+      }
+    }
+
+    // ══════════════════════════════════════════
+    // 投票送信
+    // ══════════════════════════════════════════
+    async function submitVote() {
+      const comment = document.getElementById('voteComment').value.trim();
+      const pw      = document.getElementById('voteBirthdayPw').value.trim();
+      const msgEl   = document.getElementById('voteSubmitMsg');
+      const btn     = document.getElementById('voteSubmitBtn');
+
+      if (!pw || pw.length !== 4 || !/^\d{4}$/.test(pw)) {
+        msgEl.textContent = '誕生日パスワードは4桁の数字で入力してください';
+        msgEl.style.color = '#ef4444'; return;
+      }
+      if (Object.keys(mySlots).length === 0 && !comment) {
+        msgEl.textContent = '希望スロットかコメントを入力してください';
+        msgEl.style.color = '#ef4444'; return;
+      }
+
+      btn.disabled    = true;
+      btn.textContent = '送信中...';
+
+      const monthKey = getNextMonthKey();
+      const entry = {
+        comment:     comment,
+        password:    pw,
+        slots:       mySlots,
+        submittedAt: Date.now()
+      };
+
+      try {
+        if (myVoteId) {
+          await db.ref('/cia-gurucon/vote/' + monthKey + '/entries/' + myVoteId).set(entry);
+        } else {
+          await db.ref('/cia-gurucon/vote/' + monthKey + '/entries').push().set(entry);
+        }
+        myVoteId = null;
+        mySlots  = {};
+        reflectMySlotsOnGrid();
+        document.getElementById('voteComment').value    = '';
+        document.getElementById('voteBirthdayPw').value = '';
+        msgEl.textContent = '送信しました！ありがとうございます';
+        msgEl.style.color = '#16a34a';
+        btn.textContent   = '送信しました！';
+        setTimeout(() => { btn.disabled = false; btn.textContent = '送信する'; }, 3000);
+      } catch (err) {
+        console.error('submitVote error:', err);
+        msgEl.textContent = '送信に失敗しました。もう一度お試しください。';
+        msgEl.style.color = '#ef4444';
+        btn.disabled    = false;
+        btn.textContent = '送信する';
+      }
+    }
+
+    // ══════════════════════════════════════════
+    // 投票編集（誕生日PWでロード）
+    // ══════════════════════════════════════════
+    function loadMyVote() {
+      const pw    = document.getElementById('voteEditPw').value.trim();
+      const msgEl = document.getElementById('voteEditMsg');
+
+      if (!pw || pw.length !== 4 || !/^\d{4}$/.test(pw)) {
+        msgEl.textContent = '4桁の数字を入力してください';
+        msgEl.style.color = '#ef4444'; return;
+      }
+
+      const found = Object.entries(voteData).find(([id, e]) => e.password === pw);
+      if (!found) {
+        msgEl.textContent = '該当するデータが見つかりませんでした';
+        msgEl.style.color = '#ef4444'; return;
+      }
+
+      const [id, entry] = found;
+      myVoteId = id;
+      mySlots  = entry.slots ? JSON.parse(JSON.stringify(entry.slots)) : {};
+      document.getElementById('voteComment').value    = entry.comment || '';
+      document.getElementById('voteBirthdayPw').value = entry.password || '';
+      reflectMySlotsOnGrid();
+      msgEl.textContent = '読み込みました。修正後に「送信する」を押してください';
+      msgEl.style.color = '#16a34a';
+      document.getElementById('voteEditPw').value = '';
+    }
+
+    // ══════════════════════════════════════════
+    // 投票集計（匿名・リアルタイム）
+    // ══════════════════════════════════════════
+    function calcAggregateCounts() {
+      const counts = {};
+      Object.values(voteData).forEach(entry => {
+        if (!entry.slots) return;
+        Object.entries(entry.slots).forEach(([day, hours]) => {
+          if (!counts[day]) counts[day] = {};
+          Object.entries(hours).forEach(([hour, state]) => {
+            if (state === 'o' || state === 'd') {
+              counts[day][hour] = (counts[day][hour] || 0) + 1;
+            }
+          });
+        });
+      });
+      return counts;
+    }
+
+    function renderVoteAggregate() {
+      const counts    = calcAggregateCounts();
+      const totalDays = getNextMonthDays();
+
+      // 通常グリッドの集計数バッジ更新
+      for (let d = 1; d <= totalDays; d++) {
+        const dayStr = String(d).padStart(2, '0');
+        VOTE_HOURS.forEach(h => {
+          const hourStr   = String(h).padStart(2, '0');
+          const cell      = document.getElementById('vc-' + dayStr + '-' + hourStr);
+          if (!cell) return;
+          const count     = (counts[dayStr] && counts[dayStr][hourStr]) || 0;
+          const countSpan = cell.querySelector('.cell-count');
+          if (countSpan) countSpan.textContent = count > 0 ? count : '';
+        });
+      }
+
+      renderVoteHeatmap(counts);
+    }
+
+    function renderVoteHeatmap(counts) {
+      const totalDays = getNextMonthDays();
+      const allCounts = Object.values(counts).flatMap(h => Object.values(h));
+      const maxCount  = allCounts.length > 0 ? Math.max(1, ...allCounts) : 1;
+
+      for (let d = 1; d <= totalDays; d++) {
+        const dayStr = String(d).padStart(2, '0');
+        VOTE_HOURS.forEach(h => {
+          const hourStr = String(h).padStart(2, '0');
+          const cell    = document.getElementById('hm-' + dayStr + '-' + hourStr);
+          if (!cell) return;
+
+          // フィルタ適用
+          const skip = (voteFilter === 'day'   && (h < 9  || h > 15))
+                    || (voteFilter === 'night' && (h < 20 || h > 24));
+          if (skip) {
+            cell.className = 'vote-cell heatmap-cell-0';
+            cell.style.opacity = '0.3';
+            const cs = cell.querySelector('span');
+            if (cs) cs.textContent = '';
+            return;
+          }
+          cell.style.opacity = '1';
+
+          const count = (counts[dayStr] && counts[dayStr][hourStr]) || 0;
+          const level = count === 0 ? 0 : Math.min(5, Math.ceil(count / maxCount * 5));
+          cell.className = 'vote-cell heatmap-cell-' + level;
+          const cs = cell.querySelector('span');
+          if (cs) {
+            cs.textContent = count > 0 ? count : '';
+            cs.style.color = level >= 3 ? '#fff' : 'var(--color-accent2)';
+          }
+        });
+      }
+    }
+
+    function setVoteFilter(filter) {
+      voteFilter = filter;
+      ['all', 'day', 'night'].forEach(f => {
+        const btn = document.getElementById('filter' + f.charAt(0).toUpperCase() + f.slice(1));
+        if (!btn) return;
+        btn.style.background = f === filter ? 'var(--color-accent2)' : 'var(--color-white)';
+        btn.style.color      = f === filter ? '#fff' : 'var(--color-text)';
+      });
+      renderVoteHeatmap(calcAggregateCounts());
+    }
+
+    // ══════════════════════════════════════════
+    // コメント一覧
+    // ══════════════════════════════════════════
+    function renderVoteComments() {
+      const listEl = document.getElementById('voteCommentList');
+      if (!listEl) return;
+      while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+
+      const comments = Object.values(voteData)
+        .filter(e => e.comment && e.comment.trim())
+        .sort((a, b) => (a.submittedAt || 0) - (b.submittedAt || 0));
+
+      if (comments.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'text-muted';
+        p.textContent = 'まだコメントがありません';
+        listEl.appendChild(p); return;
+      }
+
+      comments.forEach(entry => {
+        const item = document.createElement('div');
+        item.className = 'vote-comment-item';
+        const span = document.createElement('span');
+        span.textContent = entry.comment;
+        item.appendChild(span);
+        listEl.appendChild(item);
+      });
+    }
+
+    // ══════════════════════════════════════════
+    // オプチャ定型文コピー
+    // ══════════════════════════════════════════
+    function copyOpchaTemplate() {
+      const now       = new Date();
+      const thisMonth = now.getMonth() + 1;
+      const nextMonth = thisMonth === 12 ? 1 : thisMonth + 1;
+      const deadline15 = new Date(now.getFullYear(), now.getMonth(), 15);
+      const dow15      = DOW_JA[deadline15.getDay()];
+      const toolUrl    = 'https://cia-gurucon-scheduler.netlify.app/';
+
+      const text = `【${nextMonth}月グルコンアンケートのお願い】
+
+🔽下記よりアンケートへのご回答をお願いいたします。
+${toolUrl}
+
+🔔回答期限
+${thisMonth}月15日（${dow15}）まで
+
+入力を間違えた場合は、
+お手数ですが誤った回答を削除のうえ、
+【お一人につき1回答】でお願いいたします。
+
+スムーズなスケジュール調整のため、
+ご協力いただけますと幸いです。よろしくお願いいたします。`;
+
+      const msgEl = document.getElementById('opchaMsg');
+      const copyText = text => {
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+          document.body.appendChild(ta); ta.focus(); ta.select();
+          document.execCommand('copy'); document.body.removeChild(ta);
+        }
+      };
+      copyText(text);
+      if (msgEl) {
+        msgEl.textContent = 'コピーしました！';
+        msgEl.style.color = '#16a34a';
+        setTimeout(() => { msgEl.textContent = ''; }, 3000);
+      }
+    }
+
+    // ══════════════════════════════════════════
+    // 日程決定・保存・発表バナー
+    // ══════════════════════════════════════════
+    async function saveVoteResult() {
+      const morningDate = document.getElementById('decideMorningDate').value;
+      const morningTime = document.getElementById('decideMorningTime').value.trim();
+      const eveningDate = document.getElementById('decideEveningDate').value;
+      const eveningTime = document.getElementById('decideEveningTime').value.trim();
+      const msgEl       = document.getElementById('voteResultMsg');
+
+      if (!morningDate || !morningTime || !eveningDate || !eveningTime) {
+        msgEl.textContent = '昼・夜グルコンの日付と開始時間をすべて入力してください';
+        msgEl.style.color = '#ef4444'; return;
+      }
+
+      const result = {
+        morning: { date: morningDate, startTime: morningTime },
+        evening: { date: eveningDate, startTime: eveningTime }
+      };
+
+      try {
+        const monthKey = getNextMonthKey();
+        await db.ref('/cia-gurucon/vote/' + monthKey + '/result').set(result);
+
+        // 夜グルコン event 自動設定
+        const evDate   = new Date(eveningDate + 'T00:00:00');
+        const evOpen   = new Date(evDate); evOpen.setDate(evOpen.getDate() - 3);
+        const evDl     = new Date(evDate); evDl.setDate(evDl.getDate() - 1);
+        await db.ref('/cia-gurucon/event').set({
+          date: eveningDate, startTime: eveningTime,
+          openDate: evOpen.toISOString().slice(0, 10),
+          deadline: evDl.toISOString().slice(0, 10) + 'T23:59'
+        });
+
+        // 昼グルコン event 自動設定
+        const moDate = new Date(morningDate + 'T00:00:00');
+        const moOpen = new Date(moDate); moOpen.setDate(moOpen.getDate() - 3);
+        const moDl   = new Date(moDate); moDl.setDate(moDl.getDate() - 1);
+        await db.ref('/cia-gurucon/event-morning').set({
+          date: morningDate, startTime: morningTime,
+          openDate: moOpen.toISOString().slice(0, 10),
+          deadline: moDl.toISOString().slice(0, 10) + 'T12:00'
+        });
+
+        msgEl.textContent = '日程を決定・発表しました！';
+        msgEl.style.color = '#16a34a';
+      } catch (err) {
+        console.error('saveVoteResult error:', err);
+        msgEl.textContent = '保存に失敗しました';
+        msgEl.style.color = '#ef4444';
+      }
+    }
+
+    function renderAnnouncementBanner(result) {
+      const banner = document.getElementById('announcementBanner');
+      if (!banner) return;
+      if (!result || (!result.morning && !result.evening)) {
+        banner.classList.add('hidden'); return;
+      }
+      let lines = ['&#127882; 今月のグルコン日程'];
+      if (result.morning && result.morning.date) {
+        lines.push('昼グルコン：' + formatDateShort(result.morning.date) + ' ' + result.morning.startTime + '〜');
+      }
+      if (result.evening && result.evening.date) {
+        lines.push('夜グルコン：' + formatDateShort(result.evening.date) + ' ' + result.evening.startTime + '〜');
+      }
+      banner.innerHTML = lines.join('<br>');
+      banner.classList.remove('hidden');
     }
 
     // ══════════════════════════════════════════
