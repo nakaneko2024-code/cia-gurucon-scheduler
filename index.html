@@ -485,7 +485,21 @@
     <!-- ═══ 日程投票タブ ═══════════════════════ -->
     <div id="tab-vote" class="tab-pane active">
 
-      <!-- 期間外メッセージ -->
+      <!-- ログインフォーム（未ログイン時） -->
+      <div id="voteMemberLoginArea" class="hidden">
+        <div class="card" style="max-width:360px;margin:0 auto;">
+          <div class="card-title">入室パスワード</div>
+          <p class="text-muted">パスワードを入力してください</p>
+          <div class="login-row">
+            <input type="password" id="voteMemberPasswordInput" placeholder="パスワード"
+              onkeydown="if(event.key==='Enter') voteMemberLogin()">
+            <button onclick="voteMemberLogin()">入室</button>
+          </div>
+          <p class="text-muted mt-8" id="voteMemberLoginError" style="color:#ef4444"></p>
+        </div>
+      </div>
+
+      <!-- 期間外メッセージ（管理者用・今後の拡張用に残す） -->
       <div id="voteOutOfPeriod" class="out-of-period hidden">
         <span class="icon">&#x23F0;</span>
         現在、投票期間外です。<br>
@@ -901,34 +915,32 @@
     // 投票期間制御
     // ══════════════════════════════════════════
     function checkVotePeriod() {
-      const voteOut  = document.getElementById('voteOutOfPeriod');
-      const voteForm = document.getElementById('voteForm');
-      const voteAdm  = document.getElementById('voteAdminPanel');
-      if (!voteOut || !voteForm) return;
+      const voteLoginArea = document.getElementById('voteMemberLoginArea');
+      const voteOut       = document.getElementById('voteOutOfPeriod');
+      const voteForm      = document.getElementById('voteForm');
+      const voteAdm       = document.getElementById('voteAdminPanel');
+
+      const hide = el => { if (el) el.classList.add('hidden'); };
+      const show = el => { if (el) el.classList.remove('hidden'); };
 
       // 管理者：常に全表示
       if (isAdminLoggedIn()) {
-        voteOut.classList.add('hidden');
-        voteForm.classList.remove('hidden');
-        if (voteAdm) voteAdm.classList.remove('hidden');
+        hide(voteLoginArea); hide(voteOut);
+        show(voteForm); show(voteAdm);
         if (!document.querySelector('#voteGrid .vote-cell')) buildVoteGrid('voteGrid', false);
         if (!document.querySelector('#voteHeatmap .vote-cell')) buildVoteGrid('voteHeatmap', true);
         return;
       }
 
-      // 未ログイン：パスワード入力を促す
+      // 未ログイン → ログインフォームをこのタブ内に表示
       if (!isMemberLoggedIn()) {
-        voteOut.innerHTML = '<span class="icon">&#x1F511;</span>参加するにはパスワードが必要です。<br>「夜グルコン」タブからログインしてください。';
-        voteOut.classList.remove('hidden');
-        voteForm.classList.add('hidden');
-        if (voteAdm) voteAdm.classList.add('hidden');
+        show(voteLoginArea); hide(voteOut); hide(voteForm); hide(voteAdm);
         return;
       }
 
-      // ログイン済みメンバー：常に投票フォームを表示
-      voteOut.classList.add('hidden');
-      voteForm.classList.remove('hidden');
-      if (voteAdm) voteAdm.classList.add('hidden');
+      // ログイン済みメンバー → 投票フォームを表示
+      hide(voteLoginArea); hide(voteOut); hide(voteAdm);
+      show(voteForm);
       if (!document.querySelector('#voteGrid .vote-cell')) buildVoteGrid('voteGrid', false);
     }
 
@@ -1097,6 +1109,21 @@
         errEl.textContent = 'パスワードが違います';
       }
       document.getElementById('memberPasswordInput').value = '';
+    }
+
+    function voteMemberLogin() {
+      const input = document.getElementById('voteMemberPasswordInput').value;
+      const errEl = document.getElementById('voteMemberLoginError');
+      if (input === MEMBER_PASSWORD) {
+        localStorage.setItem('cia_member', 'true');
+        errEl.textContent = '';
+        checkVotePeriod();        // 投票フォームを表示
+        checkAccessPeriod();      // 夜グルコンタブも同期
+        checkMorningAccessPeriod(); // 昼グルコンタブも同期
+      } else {
+        errEl.textContent = 'パスワードが違います';
+      }
+      document.getElementById('voteMemberPasswordInput').value = '';
     }
 
     // ══════════════════════════════════════════
