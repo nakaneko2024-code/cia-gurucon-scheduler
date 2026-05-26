@@ -567,8 +567,127 @@
 
     <!-- ═══ 昼グルコンタブ ══════════════════════ -->
     <div id="tab-morning" class="tab-pane">
-      <p class="text-muted" style="text-align:center;padding:40px 20px">（昼グルコン 読み込み中…）</p>
-    </div>
+
+      <!-- 昼グルコン ヘッダー情報 -->
+      <div style="text-align:center;padding:12px 16px 0;color:var(--color-accent2)">
+        <div class="event-date" id="morningEventDateDisplay" style="font-size:1.3rem;font-weight:700">—</div>
+        <div class="deadline-badge" id="morningDeadlineBadge">受付中</div>
+      </div>
+
+      <div id="morningOutOfPeriod" class="out-of-period hidden">
+        <span class="icon">&#x23F0;</span>
+        現在、受付期間外です。<br>
+        次回昼グルコンの3日前より入力できます。
+      </div>
+
+      <div id="morningMemberLoginArea" class="hidden">
+        <div class="card" style="max-width:360px;margin:0 auto;">
+          <div class="card-title">入室パスワード</div>
+          <p class="text-muted">パスワードを入力してください</p>
+          <div class="login-row">
+            <input type="password" id="morningMemberPasswordInput" placeholder="パスワード"
+              onkeydown="if(event.key==='Enter') morningMemberLogin()">
+            <button onclick="morningMemberLogin()">入室</button>
+          </div>
+          <p class="text-muted mt-8" id="morningMemberLoginError" style="color:#ef4444"></p>
+        </div>
+      </div>
+
+      <div id="morningParticipantArea">
+
+        <div class="card">
+          <div class="card-title">参加者の希望（入力済み）<span class="count-badge" id="morningSubmissionCount">0</span></div>
+          <div class="bubbles" id="morningBubblesContainer">
+            <p class="text-muted">まだ入力がありません</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">希望を入力する</div>
+          <div class="field">
+            <label>お名前（ニックネームOK）</label>
+            <input type="text" id="morningInputName" placeholder="例：まいちゃん">
+          </div>
+          <div class="field">
+            <label>&#9312; 希望時間</label>
+            <div class="radio-group">
+              <button class="radio-btn" id="morningBtn10" type="button" onclick="selectMorningDuration(10)">10分</button>
+              <button class="radio-btn" id="morningBtn20" type="button" onclick="selectMorningDuration(20)">20分</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>&#9313; 参加希望の時間帯</label>
+            <div class="time-row">
+              <input type="text" id="morningInputTimeStart" placeholder="10:00" oninput="onMorningFormInput()">
+              <span class="sep">〜</span>
+              <input type="text" id="morningInputTimeEnd" placeholder="12:00" oninput="onMorningFormInput()">
+            </div>
+          </div>
+          <div class="forecast hidden" id="morningForecastArea">
+            <div class="forecast-icon" id="morningForecastIcon"></div>
+            <div class="forecast-text" id="morningForecastText"></div>
+          </div>
+          <button class="btn-primary" id="morningSubmitBtn" onclick="submitMorningEntry()" disabled>送信する</button>
+        </div>
+
+      </div><!-- /#morningParticipantArea -->
+
+      <!-- 昼グルコン 管理者セクション -->
+      <div class="admin-section">
+        <div class="card-title">管理者（昼グルコン）</div>
+
+        <div id="morningAdminLoginForm">
+          <p class="text-muted">パスワードを入力してください</p>
+          <div class="login-row">
+            <input type="password" id="morningAdminPasswordInput" placeholder="パスワード"
+              onkeydown="if(event.key==='Enter') morningAdminLogin()">
+            <button onclick="morningAdminLogin()">ログイン</button>
+          </div>
+          <p class="text-muted mt-8" id="morningAdminLoginError" style="color:#ef4444"></p>
+        </div>
+
+        <div id="morningAdminPanel" class="hidden">
+          <div class="admin-badge">管理者メニュー（昼グルコン）</div>
+
+          <!-- 3日前定型文ボタン（3日前のみ表示） -->
+          <div id="morningTemplateSection" class="hidden" style="margin-bottom:16px">
+            <button class="btn-secondary" onclick="copyMorningTemplate()">3日前定型文をコピー</button>
+            <p class="text-muted mt-8" id="morningTemplateMsg"></p>
+          </div>
+
+          <div style="margin-bottom:20px">
+            <div class="card-title">グルコン設定</div>
+            <div class="settings-row">
+              <div class="field">
+                <label>開催日</label>
+                <input type="date" id="morningSettingDate">
+              </div>
+              <div class="field">
+                <label>開始時間</label>
+                <input type="text" id="morningSettingStartTime" placeholder="10:00">
+              </div>
+            </div>
+            <button class="btn-secondary" onclick="saveMorningEventSettings()">設定を保存</button>
+            <p class="text-muted mt-8" id="morningSettingSaved"></p>
+          </div>
+
+          <div style="margin-bottom:20px">
+            <div class="card-title">参加者一覧<span class="count-badge" id="morningAdminCount">0</span></div>
+            <div id="morningAdminSubmissionList" class="text-muted">（なし）</div>
+          </div>
+
+          <button class="btn-primary" onclick="generateMorningSchedule()">スケジュール生成</button>
+          <div id="morningScheduleResult" class="hidden">
+            <div class="schedule-list" id="morningScheduleList"></div>
+            <button class="btn-secondary" onclick="copyMorningSchedule()">スケジュールをコピー</button>
+          </div>
+
+          <button class="btn-secondary" style="margin-top:20px" onclick="morningAdminLogout()">ログアウト</button>
+        </div>
+
+      </div><!-- /.admin-section -->
+
+    </div><!-- /#tab-morning -->
 
     <!-- ═══ 夜グルコンタブ ══════════════════════ -->
     <div id="tab-evening" class="tab-pane">
@@ -1912,12 +2031,378 @@ ${thisMonth}月15日（${dow15}）まで
     }
 
     // ══════════════════════════════════════════
+    // 昼グルコン：状態変数・Firebase購読
+    // ══════════════════════════════════════════
+    let morningEvent              = null;
+    let morningSubmissions        = {};
+    let morningSelectedDuration   = 0;
+
+    db.ref('/cia-gurucon/event-morning').on('value', snap => {
+      morningEvent = snap.val() || null;
+      updateMorningHeader();
+      checkMorningAccessPeriod();
+      renderMorningBubbles();
+      if (isAdminLoggedIn()) checkMorningTemplateButton();
+    });
+
+    db.ref('/cia-gurucon/submissions-morning').on('value', snap => {
+      morningSubmissions = snap.val() || {};
+      renderMorningBubbles();
+      updateMorningForecast();
+      renderMorningAdminSubmissionList();
+    });
+
+    function updateMorningHeader() {
+      const dateEl  = document.getElementById('morningEventDateDisplay');
+      const badgeEl = document.getElementById('morningDeadlineBadge');
+      if (!dateEl) return;
+      if (morningEvent && morningEvent.date) {
+        dateEl.textContent  = formatEventTitle(morningEvent.date, morningEvent.startTime);
+        badgeEl.textContent = formatDeadlineBadge(morningEvent.deadline);
+        if (isAdminLoggedIn()) {
+          const di = document.getElementById('morningSettingDate');
+          const ti = document.getElementById('morningSettingStartTime');
+          if (di && !di.value) di.value = morningEvent.date || '';
+          if (ti && !ti.value) ti.value = morningEvent.startTime || '';
+        }
+      } else {
+        dateEl.textContent  = '—';
+        badgeEl.textContent = '設定待ち';
+      }
+    }
+
+    function checkMorningAccessPeriod() {
+      const participantArea = document.getElementById('morningParticipantArea');
+      const outOfPeriodMsg  = document.getElementById('morningOutOfPeriod');
+      const memberLoginArea = document.getElementById('morningMemberLoginArea');
+      if (!participantArea) return;
+
+      const show = el => el.classList.remove('hidden');
+      const hide = el => el.classList.add('hidden');
+
+      if (isAdminLoggedIn()) {
+        show(participantArea); hide(outOfPeriodMsg); hide(memberLoginArea); return;
+      }
+      if (!morningEvent || !morningEvent.date) {
+        hide(participantArea); show(outOfPeriodMsg); hide(memberLoginArea); return;
+      }
+      const now      = new Date();
+      const openDate = new Date(morningEvent.openDate + 'T00:00:00');
+      const deadline = new Date(morningEvent.deadline);
+      const inPeriod = now >= openDate && now <= deadline;
+
+      if (!inPeriod)          { hide(participantArea); show(outOfPeriodMsg);  hide(memberLoginArea); return; }
+      if (isMemberLoggedIn()) { show(participantArea); hide(outOfPeriodMsg);  hide(memberLoginArea); return; }
+      hide(participantArea); hide(outOfPeriodMsg); show(memberLoginArea);
+    }
+
+    function morningMemberLogin() {
+      const input = document.getElementById('morningMemberPasswordInput').value;
+      const errEl = document.getElementById('morningMemberLoginError');
+      if (input === MEMBER_PASSWORD) {
+        localStorage.setItem('cia_member', 'true');
+        errEl.textContent = '';
+        checkMorningAccessPeriod();
+      } else {
+        errEl.textContent = 'パスワードが違います';
+      }
+      document.getElementById('morningMemberPasswordInput').value = '';
+    }
+
+    function morningAdminLogin() {
+      const input = document.getElementById('morningAdminPasswordInput').value;
+      const errEl = document.getElementById('morningAdminLoginError');
+      if (input === ADMIN_PASSWORD) {
+        localStorage.setItem('cia_admin', 'true');
+        document.getElementById('morningAdminLoginForm').classList.add('hidden');
+        document.getElementById('morningAdminPanel').classList.remove('hidden');
+        if (morningEvent) {
+          const di = document.getElementById('morningSettingDate');
+          const ti = document.getElementById('morningSettingStartTime');
+          if (di) di.value = morningEvent.date || '';
+          if (ti) ti.value = morningEvent.startTime || '';
+        }
+        checkMorningAccessPeriod();
+        renderMorningAdminSubmissionList();
+        checkMorningTemplateButton();
+        // 夜グルコンと投票タブの管理者パネルも同期
+        document.getElementById('adminLoginForm').classList.add('hidden');
+        document.getElementById('adminPanel').classList.remove('hidden');
+        checkVotePeriod();
+      } else {
+        errEl.textContent = 'パスワードが違います';
+      }
+      document.getElementById('morningAdminPasswordInput').value = '';
+    }
+
+    function morningAdminLogout() {
+      localStorage.removeItem('cia_admin');
+      document.getElementById('morningAdminLoginForm').classList.remove('hidden');
+      document.getElementById('morningAdminPanel').classList.add('hidden');
+      checkMorningAccessPeriod();
+    }
+
+    function selectMorningDuration(min) {
+      morningSelectedDuration = min;
+      document.getElementById('morningBtn10').classList.toggle('selected', min === 10);
+      document.getElementById('morningBtn20').classList.toggle('selected', min === 20);
+      onMorningFormInput();
+    }
+
+    function validateMorningForm() {
+      const name  = document.getElementById('morningInputName').value.trim();
+      const start = document.getElementById('morningInputTimeStart').value.trim();
+      const end   = document.getElementById('morningInputTimeEnd').value.trim();
+      return name.length > 0 && morningSelectedDuration > 0
+        && !isNaN(timeToMin(start)) && !isNaN(timeToMin(end))
+        && timeToMin(start) < timeToMin(end);
+    }
+
+    function onMorningFormInput() {
+      document.getElementById('morningSubmitBtn').disabled = !validateMorningForm();
+      updateMorningForecast();
+    }
+
+    function updateMorningForecast() {
+      const forecastArea = document.getElementById('morningForecastArea');
+      const forecastIcon = document.getElementById('morningForecastIcon');
+      const forecastText = document.getElementById('morningForecastText');
+      if (!forecastArea) return;
+
+      const name  = document.getElementById('morningInputName') ? document.getElementById('morningInputName').value.trim() : '';
+      const start = document.getElementById('morningInputTimeStart') ? document.getElementById('morningInputTimeStart').value.trim() : '';
+      const end   = document.getElementById('morningInputTimeEnd') ? document.getElementById('morningInputTimeEnd').value.trim() : '';
+
+      if (!name || morningSelectedDuration === 0 || isNaN(timeToMin(start)) || isNaN(timeToMin(end))) {
+        forecastArea.className = 'forecast hidden'; return;
+      }
+      const allEntries = [...Object.values(morningSubmissions),
+        { name, duration: morningSelectedDuration, timeStart: start, timeEnd: end }];
+      const eventStart = morningEvent ? (morningEvent.startTime || '10:00') : '10:00';
+      const schedule   = calcEDF(allEntries, eventStart);
+      const mine       = [...schedule].reverse().find(r => r.name === name);
+      if (!mine) { forecastArea.className = 'forecast hidden'; return; }
+
+      while (forecastText.firstChild) forecastText.removeChild(forecastText.firstChild);
+      if (mine.status === 'ok') {
+        forecastArea.className = 'forecast green';
+        forecastIcon.textContent = '🟢';
+        const s = document.createElement('strong'); s.textContent = '希望通りに入れそうです';
+        const sp = document.createElement('span'); sp.style.cssText = 'color:#555;display:block';
+        sp.textContent = minToTime(mine.slotStart) + '〜' + minToTime(mine.slotEnd) + ' に割り当て予定';
+        forecastText.appendChild(s); forecastText.appendChild(sp);
+      } else {
+        forecastArea.className = 'forecast red';
+        forecastIcon.textContent = '🔴';
+        const s = document.createElement('strong'); s.textContent = '希望時間を超える可能性があります';
+        const sp = document.createElement('span'); sp.style.cssText = 'color:#555;display:block';
+        sp.textContent = '現時点で ' + mine.overflowMin + '分オーバーの見込み';
+        forecastText.appendChild(s); forecastText.appendChild(sp);
+      }
+    }
+
+    document.getElementById('morningInputName').addEventListener('input', onMorningFormInput);
+
+    function renderMorningBubbles() {
+      const container = document.getElementById('morningBubblesContainer');
+      const countEl   = document.getElementById('morningSubmissionCount');
+      if (!container) return;
+      const entries = Object.values(morningSubmissions).sort((a, b) => a.submittedAt - b.submittedAt);
+      countEl.textContent = entries.length;
+      while (container.firstChild) container.removeChild(container.firstChild);
+      if (entries.length === 0) {
+        const p = document.createElement('p'); p.className = 'text-muted';
+        p.textContent = 'まだ入力がありません'; container.appendChild(p); return;
+      }
+      const startTime    = morningEvent ? (morningEvent.startTime || '10:00') : '10:00';
+      const tempSchedule = calcEDF(entries, startTime);
+      entries.forEach(entry => {
+        const row       = tempSchedule.find(r => r.name === entry.name);
+        const indicator = row ? (row.status === 'ok' ? '🟢' : '🔴') : '🟡';
+        const bubbleDiv = document.createElement('div'); bubbleDiv.className = 'bubble';
+        const avatarDiv = document.createElement('div'); avatarDiv.className = 'bubble-avatar';
+        avatarDiv.style.background = getAvatarColor(entry.name);
+        avatarDiv.textContent = entry.name.charAt(0);
+        const bodyDiv = document.createElement('div'); bodyDiv.className = 'bubble-body';
+        const nameDiv = document.createElement('div'); nameDiv.className = 'bubble-name';
+        nameDiv.textContent = entry.name;
+        const textDiv = document.createElement('div'); textDiv.className = 'bubble-text';
+        textDiv.textContent = '①' + Number(entry.duration) + '分　②' + entry.timeStart + '〜' + entry.timeEnd + ' ';
+        const indSpan = document.createElement('span'); indSpan.className = 'bubble-indicator';
+        indSpan.textContent = indicator; textDiv.appendChild(indSpan);
+        bodyDiv.appendChild(nameDiv); bodyDiv.appendChild(textDiv);
+        bubbleDiv.appendChild(avatarDiv); bubbleDiv.appendChild(bodyDiv);
+        container.appendChild(bubbleDiv);
+      });
+    }
+
+    async function submitMorningEntry() {
+      if (!validateMorningForm()) return;
+      const btn = document.getElementById('morningSubmitBtn');
+      btn.disabled = true; btn.textContent = '送信中...';
+      const entry = {
+        name:        document.getElementById('morningInputName').value.trim(),
+        duration:    morningSelectedDuration,
+        timeStart:   document.getElementById('morningInputTimeStart').value.trim(),
+        timeEnd:     document.getElementById('morningInputTimeEnd').value.trim(),
+        submittedAt: Date.now()
+      };
+      try {
+        await db.ref('/cia-gurucon/submissions-morning').push().set(entry);
+        document.getElementById('morningInputName').value      = '';
+        document.getElementById('morningInputTimeStart').value = '';
+        document.getElementById('morningInputTimeEnd').value   = '';
+        morningSelectedDuration = 0;
+        document.getElementById('morningBtn10').classList.remove('selected');
+        document.getElementById('morningBtn20').classList.remove('selected');
+        document.getElementById('morningForecastArea').className = 'forecast hidden';
+        btn.textContent = '送信しました！';
+        setTimeout(() => { btn.textContent = '送信する'; btn.disabled = true; }, 2000);
+      } catch (err) {
+        console.error('submitMorningEntry error:', err);
+        alert('送信に失敗しました。もう一度お試しください。');
+        btn.disabled = false; btn.textContent = '送信する';
+      }
+    }
+
+    async function saveMorningEventSettings() {
+      const dateVal = document.getElementById('morningSettingDate').value;
+      const timeVal = document.getElementById('morningSettingStartTime').value.trim();
+      const savedEl = document.getElementById('morningSettingSaved');
+      if (!dateVal || !timeVal) {
+        savedEl.textContent = '日付と開始時間を入力してください';
+        savedEl.style.color = '#ef4444'; return;
+      }
+      const eventDate = new Date(dateVal + 'T00:00:00');
+      const openDate  = new Date(eventDate); openDate.setDate(openDate.getDate() - 3);
+      const dlDate    = new Date(eventDate); dlDate.setDate(dlDate.getDate() - 1);
+      // 昼グルコンの締切は前日12:00
+      const deadlineStr = dlDate.toISOString().slice(0, 10) + 'T12:00';
+      try {
+        await db.ref('/cia-gurucon/event-morning').set({
+          date: dateVal, startTime: timeVal,
+          openDate: openDate.toISOString().slice(0, 10),
+          deadline: deadlineStr
+        });
+        savedEl.textContent = '保存しました（締切：前日 12:00）';
+        savedEl.style.color = '#16a34a';
+      } catch (err) {
+        savedEl.textContent = '保存に失敗しました'; savedEl.style.color = '#ef4444';
+      }
+    }
+
+    function renderMorningAdminSubmissionList() {
+      const listEl  = document.getElementById('morningAdminSubmissionList');
+      const countEl = document.getElementById('morningAdminCount');
+      if (!listEl) return;
+      const entries = Object.values(morningSubmissions).sort((a, b) => a.submittedAt - b.submittedAt);
+      countEl.textContent = entries.length;
+      while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+      if (entries.length === 0) {
+        const p = document.createElement('p'); p.className = 'text-muted';
+        p.textContent = '（なし）'; listEl.appendChild(p); return;
+      }
+      const totalMin = entries.reduce((sum, e) => sum + Number(e.duration), 0);
+      const h = Math.floor(totalMin / 60); const m = totalMin % 60;
+      const table = document.createElement('table');
+      table.style.cssText = 'width:100%;border-collapse:collapse;font-size:0.83rem';
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      headerRow.style.borderBottom = '2px solid var(--color-border)';
+      ['#', '名前', '時間', '希望帯'].forEach((text, i) => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        th.style.cssText = 'text-align:' + (i === 2 ? 'center' : 'left') + ';padding:4px 6px;color:var(--color-muted);font-weight:600';
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow); table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      entries.forEach((e, i) => {
+        const tr = document.createElement('tr'); tr.style.borderBottom = '1px solid var(--color-border)';
+        [i+1, e.name, Number(e.duration)+'分', e.timeStart+'〜'+e.timeEnd].forEach((val, ci) => {
+          const td = document.createElement('td'); td.textContent = val;
+          td.style.cssText = 'padding:4px 6px' + (ci === 2 ? ';text-align:center' : '');
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      const totalP = document.createElement('p'); totalP.className = 'text-muted mt-8';
+      totalP.textContent = '合計 ' + totalMin + '分（' + h + '時間' + m + '分）';
+      listEl.appendChild(table); listEl.appendChild(totalP);
+    }
+
+    function generateMorningSchedule() {
+      const entries    = Object.values(morningSubmissions).sort((a, b) => a.submittedAt - b.submittedAt);
+      const eventStart = morningEvent ? (morningEvent.startTime || '10:00') : '10:00';
+      const schedule   = calcEDF(entries, eventStart);
+      const resultEl   = document.getElementById('morningScheduleResult');
+      const listEl     = document.getElementById('morningScheduleList');
+      while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+      if (schedule.length === 0) {
+        const p = document.createElement('p'); p.className = 'text-muted';
+        p.textContent = '参加者がまだいません'; listEl.appendChild(p);
+        resultEl.classList.remove('hidden'); return;
+      }
+      schedule.forEach((row, i) => {
+        const rowDiv = document.createElement('div'); rowDiv.className = 'schedule-row';
+        const leftSpan = document.createElement('span');
+        leftSpan.textContent = (CIRCLE_NUMS[i] || '('+(i+1)+')') + ' ' +
+          minToTime(row.slotStart) + '〜' + minToTime(row.slotEnd) + '（' + row.duration + '分）' + row.name;
+        const statusSpan = document.createElement('span');
+        statusSpan.className = row.status === 'ok' ? 'status-ok' : 'status-warn';
+        statusSpan.textContent = row.status === 'ok' ? '✓' : '⚠ ' + row.overflowMin + '分オーバー';
+        rowDiv.appendChild(leftSpan); rowDiv.appendChild(statusSpan); listEl.appendChild(rowDiv);
+      });
+      resultEl.classList.remove('hidden');
+    }
+
+    function copyMorningSchedule() {
+      const entries    = Object.values(morningSubmissions).sort((a, b) => a.submittedAt - b.submittedAt);
+      const eventStart = morningEvent ? (morningEvent.startTime || '10:00') : '10:00';
+      const schedule   = calcEDF(entries, eventStart);
+      if (!morningEvent || !morningEvent.date) { alert('グルコン日程が設定されていません'); return; }
+      const d = new Date(morningEvent.date + 'T00:00:00');
+      const dateStr = (d.getMonth()+1) + '/' + d.getDate() + '(' + DOW_JA[d.getDay()] + ')';
+      const lines = [
+        '昼グルコン', dateStr + ' ' + morningEvent.startTime + '〜', '',
+        '【マンスリースケジュール決定のお知らせ】', '',
+        ...schedule.map((row, i) => {
+          const num    = CIRCLE_NUMS[i] || '('+(i+1)+')';
+          const status = row.status === 'ok' ? '✅' : '⚠️ ' + row.overflowMin + '分オーバー';
+          return num + ' ' + minToTime(row.slotStart) + '〜' + minToTime(row.slotEnd) +
+            '（' + row.duration + '分）' + row.name + '　' + status;
+        }),
+        '', '上記のスケジュールがご希望と違っていましたら、',
+        'お気軽にお知らせください😊', 'よろしくお願いいたします。'
+      ];
+      const text = lines.join('\n');
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          const btn = document.querySelector('[onclick="copyMorningSchedule()"]');
+          if (btn) { const orig = btn.textContent; btn.textContent = 'コピーしました！';
+            setTimeout(() => { btn.textContent = orig; }, 2000); }
+        });
+      } else {
+        const ta = document.createElement('textarea'); ta.value = text;
+        ta.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+      }
+    }
+
+    // ══════════════════════════════════════════
     // ページ読み込み時のセッション復元
     // ══════════════════════════════════════════
     (function initSession() {
       if (isAdminLoggedIn()) {
         document.getElementById('adminLoginForm').classList.add('hidden');
         document.getElementById('adminPanel').classList.remove('hidden');
+        // 昼グルコン管理者パネルも復元
+        const mlf = document.getElementById('morningAdminLoginForm');
+        const mlp = document.getElementById('morningAdminPanel');
+        if (mlf) mlf.classList.add('hidden');
+        if (mlp) mlp.classList.remove('hidden');
       }
       // checkAccessPeriod は Firebase イベントデータ取得後に呼ばれる
     })();
