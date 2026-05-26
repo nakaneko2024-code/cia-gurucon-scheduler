@@ -323,6 +323,19 @@
       次回グルコンの3日前より入力できます。
     </div>
 
+    <div id="memberLoginArea" class="hidden">
+      <div class="card" style="max-width:360px;margin:0 auto;">
+        <div class="card-title">入室パスワード</div>
+        <p class="text-muted">パスワードを入力してください</p>
+        <div class="login-row">
+          <input type="password" id="memberPasswordInput" placeholder="パスワード"
+            onkeydown="if(event.key==='Enter') memberLogin()">
+          <button onclick="memberLogin()">入室</button>
+        </div>
+        <p class="text-muted mt-8" id="memberLoginError" style="color:#ef4444"></p>
+      </div>
+    </div>
+
     <div id="participantArea">
 
       <div class="card">
@@ -421,7 +434,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
   <script>
-    const ADMIN_PASSWORD = 'cia2024'; // ★デプロイ前に変更。ソースに露出するため推測されにくい文字列にすること
+    const ADMIN_PASSWORD  = 'cia0000'; // 管理者パスワード
+    const MEMBER_PASSWORD = 'cia';     // 参加者パスワード（生徒さん用）
 
     // ══════════════════════════════════════════
     // 時刻ユーティリティ
@@ -570,6 +584,26 @@
     }
 
     // ══════════════════════════════════════════
+    // 参加者認証
+    // ══════════════════════════════════════════
+    function isMemberLoggedIn() {
+      return localStorage.getItem('cia_member') === 'true';
+    }
+
+    function memberLogin() {
+      const input = document.getElementById('memberPasswordInput').value;
+      const errEl = document.getElementById('memberLoginError');
+      if (input === MEMBER_PASSWORD) {
+        localStorage.setItem('cia_member', 'true');
+        errEl.textContent = '';
+        checkAccessPeriod();
+      } else {
+        errEl.textContent = 'パスワードが違います';
+      }
+      document.getElementById('memberPasswordInput').value = '';
+    }
+
+    // ══════════════════════════════════════════
     // Task 5: 管理者認証
     // ══════════════════════════════════════════
     function isAdminLoggedIn() {
@@ -611,16 +645,16 @@
     function checkAccessPeriod() {
       const participantArea = document.getElementById('participantArea');
       const outOfPeriodMsg  = document.getElementById('outOfPeriodMsg');
-      if (isAdminLoggedIn()) {
-        participantArea.classList.remove('hidden');
-        outOfPeriodMsg.classList.add('hidden');
-        return;
-      }
-      if (!currentEvent || !currentEvent.date) {
-        participantArea.classList.add('hidden');
-        outOfPeriodMsg.classList.remove('hidden');
-        return;
-      }
+      const memberLoginArea = document.getElementById('memberLoginArea');
+
+      function showParticipant()  { participantArea.classList.remove('hidden'); outOfPeriodMsg.classList.add('hidden'); memberLoginArea.classList.add('hidden'); }
+      function showOutOfPeriod()  { participantArea.classList.add('hidden'); outOfPeriodMsg.classList.remove('hidden'); memberLoginArea.classList.add('hidden'); }
+      function showMemberLogin()  { participantArea.classList.add('hidden'); outOfPeriodMsg.classList.add('hidden'); memberLoginArea.classList.remove('hidden'); }
+
+      if (isAdminLoggedIn()) { showParticipant(); return; }
+
+      if (!currentEvent || !currentEvent.date) { showOutOfPeriod(); return; }
+
       const now       = new Date();
       const eventDate = new Date(currentEvent.date + 'T00:00:00');
       const openDate  = new Date(eventDate);
@@ -629,8 +663,10 @@
       deadline.setDate(deadline.getDate() - 1);
       deadline.setHours(23, 59, 59, 999);
       const inPeriod = now >= openDate && now <= deadline;
-      participantArea.classList.toggle('hidden', !inPeriod);
-      outOfPeriodMsg.classList.toggle('hidden', inPeriod);
+
+      if (!inPeriod)          { showOutOfPeriod(); return; }
+      if (isMemberLoggedIn()) { showParticipant(); return; }
+      showMemberLogin();
     }
 
     // ══════════════════════════════════════════
