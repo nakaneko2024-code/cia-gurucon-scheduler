@@ -777,6 +777,12 @@
       <div id="adminPanel" class="hidden">
         <div class="admin-badge">管理者メニュー</div>
 
+        <!-- 3日前定型文ボタン（3日前のみ表示） -->
+        <div id="eveningTemplateSection" class="hidden" style="margin-bottom:16px">
+          <button class="btn-secondary" onclick="copyEveningTemplate()">3日前定型文をコピー</button>
+          <p class="text-muted mt-8" id="eveningTemplateMsg"></p>
+        </div>
+
         <div style="margin-bottom:20px">
           <div class="card-title">グルコン設定</div>
           <div class="settings-row">
@@ -1035,6 +1041,7 @@
       updateHeader();
       checkAccessPeriod();
       renderBubbles();
+      if (isAdminLoggedIn()) checkEveningTemplateButton();
     });
 
     function updateHeader() {
@@ -1098,6 +1105,7 @@
         }
         checkAccessPeriod();
         checkVotePeriod();
+        checkEveningTemplateButton();
         renderAdminSubmissionList();
       } else {
         errEl.textContent = 'パスワードが違います';
@@ -2028,6 +2036,80 @@ ${thisMonth}月15日（${dow15}）まで
       }
       banner.innerHTML = lines.join('<br>');
       banner.classList.remove('hidden');
+    }
+
+    // ══════════════════════════════════════════
+    // 3日前定型文ボタン
+    // ══════════════════════════════════════════
+    function isThreeDaysBefore(eventData) {
+      if (!eventData || !eventData.date) return false;
+      const now         = new Date();
+      const eventDate   = new Date(eventData.date + 'T00:00:00');
+      const threeBefore = new Date(eventDate); threeBefore.setDate(threeBefore.getDate() - 3); threeBefore.setHours(0,0,0,0);
+      const twoBefore   = new Date(eventDate); twoBefore.setDate(twoBefore.getDate() - 2);   twoBefore.setHours(0,0,0,0);
+      return now >= threeBefore && now < twoBefore;
+    }
+
+    function checkEveningTemplateButton() {
+      const section = document.getElementById('eveningTemplateSection');
+      if (!section) return;
+      section.classList.toggle('hidden', !(isAdminLoggedIn() && isThreeDaysBefore(currentEvent)));
+    }
+
+    function checkMorningTemplateButton() {
+      const section = document.getElementById('morningTemplateSection');
+      if (!section) return;
+      section.classList.toggle('hidden', !(isAdminLoggedIn() && isThreeDaysBefore(morningEvent)));
+    }
+
+    // 共通：定型文生成＆コピー
+    function copyGuruconTemplate(eventData, type, deadlineTime) {
+      if (!eventData || !eventData.date) { alert('グルコン日程が設定されていません'); return; }
+      const eventDate = new Date(eventData.date + 'T00:00:00');
+      const prevDate  = new Date(eventDate); prevDate.setDate(prevDate.getDate() - 1);
+      const eventStr  = (eventDate.getMonth()+1) + '/' + eventDate.getDate() + '(' + DOW_JA[eventDate.getDay()] + ')';
+      const prevStr   = (prevDate.getMonth()+1)  + '/' + prevDate.getDate()  + '(' + DOW_JA[prevDate.getDay()]  + ')';
+
+      const text = `＼${eventStr} ${eventData.startTime}〜 ${type}グルコン／
+参加される方は、
+
+①10分 or 20分
+②参加希望の時間帯
+終了希望時間がある方はあわせてご記載ください。
+（とくにない方は未記入でいただけると助かります🙇‍♀️）
+
+以下のスレッドにて教えてください。
+よろしくお願い申し上げます。
+
+🔔${prevStr}${deadlineTime}まで
+＿＿＿
+
+✅事前質問締切
+昼グルコン：前日12:00まで
+夜グルコン：前日23:59まで`;
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea'); ta.value = text;
+        ta.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+      }
+    }
+
+    function copyEveningTemplate() {
+      copyGuruconTemplate(currentEvent, '夜', '23:59');
+      const msgEl = document.getElementById('eveningTemplateMsg');
+      if (msgEl) { msgEl.textContent = 'コピーしました！'; msgEl.style.color = '#16a34a';
+        setTimeout(() => { msgEl.textContent = ''; }, 3000); }
+    }
+
+    function copyMorningTemplate() {
+      copyGuruconTemplate(morningEvent, '昼', '12:00');
+      const msgEl = document.getElementById('morningTemplateMsg');
+      if (msgEl) { msgEl.textContent = 'コピーしました！'; msgEl.style.color = '#16a34a';
+        setTimeout(() => { msgEl.textContent = ''; }, 3000); }
     }
 
     // ══════════════════════════════════════════
