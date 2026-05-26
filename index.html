@@ -458,8 +458,112 @@
 
     <!-- ═══ 日程投票タブ ═══════════════════════ -->
     <div id="tab-vote" class="tab-pane active">
-      <p class="text-muted" style="text-align:center;padding:40px 20px">（日程投票 読み込み中…）</p>
-    </div>
+
+      <!-- 期間外メッセージ -->
+      <div id="voteOutOfPeriod" class="out-of-period hidden">
+        <span class="icon">&#x23F0;</span>
+        現在、投票期間外です。<br>
+        投票は毎月5日〜15日のみ入力できます。
+      </div>
+
+      <!-- 参加者向けフォーム -->
+      <div id="voteForm" class="hidden">
+
+        <div class="card">
+          <div class="card-title">&#127358; 翌月グルコン 希望日程を入力</div>
+          <p class="text-muted" style="margin-bottom:12px">
+            ○：昼のみ／夜のみ参加可（水色）<br>
+            △：昼も夜も参加可（黄色）<br>
+            ×：NG（グレー・デフォルト）
+          </p>
+
+          <div class="vote-grid-wrapper">
+            <div class="vote-grid" id="voteGrid"><!-- JS で生成 --></div>
+          </div>
+
+          <div class="field" style="margin-top:16px">
+            <label>ひとことコメント（任意）</label>
+            <input type="text" id="voteComment" placeholder="例：よろしくお願いします！まいちゃん">
+            <p class="text-muted" style="margin-top:4px">最後にお名前を入れてください（例：まいちゃん）</p>
+          </div>
+
+          <div class="field">
+            <label>誕生日パスワード（4桁数字）</label>
+            <input type="text" id="voteBirthdayPw" maxlength="4" placeholder="例：0423"
+              style="width:120px;padding:9px 13px;border:1.5px solid var(--color-border);border-radius:8px;font-family:var(--font-main);font-size:0.95rem;outline:none;">
+            <p class="text-muted" style="margin-top:4px">入力を後から編集するときに使います</p>
+          </div>
+
+          <button class="btn-primary" id="voteSubmitBtn" onclick="submitVote()">送信する</button>
+          <p class="text-muted mt-8" id="voteSubmitMsg"></p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">&#9998; 自分の入力を編集</div>
+          <p class="text-muted">誕生日パスワードを入力して「編集」を押すと、過去の入力を修正できます</p>
+          <div class="login-row" style="margin-top:8px">
+            <input type="text" id="voteEditPw" maxlength="4" placeholder="誕生日4桁"
+              style="width:100px;padding:9px 13px;border:1.5px solid var(--color-border);border-radius:8px;font-family:var(--font-main);font-size:0.95rem;outline:none;">
+            <button onclick="loadMyVote()">編集</button>
+          </div>
+          <p class="text-muted mt-8" id="voteEditMsg"></p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">コメント一覧</div>
+          <div class="vote-comment-list" id="voteCommentList">
+            <p class="text-muted">まだコメントがありません</p>
+          </div>
+        </div>
+
+      </div><!-- /#voteForm -->
+
+      <!-- 管理者用投票パネル -->
+      <div id="voteAdminPanel" class="admin-section hidden">
+        <div class="admin-badge">管理者メニュー（日程投票）</div>
+
+        <div style="margin-bottom:16px">
+          <div class="card-title">
+            投票集計
+            <button onclick="setVoteFilter('all')"   id="filterAll"   style="margin-left:8px;padding:2px 10px;border-radius:12px;border:1px solid var(--color-border);background:var(--color-accent2);color:#fff;font-size:0.72rem;cursor:pointer;">全時間帯</button>
+            <button onclick="setVoteFilter('day')"   id="filterDay"   style="padding:2px 10px;border-radius:12px;border:1px solid var(--color-border);background:var(--color-white);font-size:0.72rem;cursor:pointer;">昼帯(9-15)</button>
+            <button onclick="setVoteFilter('night')" id="filterNight" style="padding:2px 10px;border-radius:12px;border:1px solid var(--color-border);background:var(--color-white);font-size:0.72rem;cursor:pointer;">夜帯(20-24)</button>
+          </div>
+          <div class="vote-grid-wrapper" style="margin-top:8px">
+            <div class="vote-grid" id="voteHeatmap"><!-- JS で生成 --></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px">
+          <div class="card-title">オプチャ定型文コピー</div>
+          <button class="btn-secondary" onclick="copyOpchaTemplate()">定型文をコピー</button>
+          <p class="text-muted mt-8" id="opchaMsg"></p>
+        </div>
+
+        <div style="margin-bottom:16px">
+          <div class="card-title">日程決定（20日ごろ）</div>
+          <div class="field">
+            <label>昼グルコン 日程</label>
+            <div class="settings-row">
+              <div class="field"><input type="date" id="decideMorningDate"></div>
+              <div class="field"><input type="text" id="decideMorningTime" placeholder="10:00" style="width:90px;padding:9px;border:1.5px solid var(--color-border);border-radius:8px;font-family:var(--font-main);font-size:0.95rem;outline:none;"></div>
+            </div>
+          </div>
+          <div class="field">
+            <label>夜グルコン 日程</label>
+            <div class="settings-row">
+              <div class="field"><input type="date" id="decideEveningDate"></div>
+              <div class="field"><input type="text" id="decideEveningTime" placeholder="21:30" style="width:90px;padding:9px;border:1.5px solid var(--color-border);border-radius:8px;font-family:var(--font-main);font-size:0.95rem;outline:none;"></div>
+            </div>
+          </div>
+          <button class="btn-primary" onclick="saveVoteResult()">日程を決定・発表</button>
+          <p class="text-muted mt-8" id="voteResultMsg"></p>
+        </div>
+
+        <button class="btn-secondary" onclick="adminLogout()">ログアウト</button>
+      </div>
+
+    </div><!-- /#tab-vote -->
 
     <!-- ═══ 昼グルコンタブ ══════════════════════ -->
     <div id="tab-morning" class="tab-pane">
@@ -611,6 +715,79 @@
         if (btn)  btn.classList.toggle('active', t === tab);
       });
       if (tab === 'vote') checkVotePeriod();
+    }
+
+    // ══════════════════════════════════════════
+    // 月次ユーティリティ
+    // ══════════════════════════════════════════
+
+    // 翌月の "YYYY-MM" を返す
+    function getNextMonthKey() {
+      const d = new Date();
+      d.setMonth(d.getMonth() + 1, 1);
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    }
+
+    // 翌月の日数を返す
+    function getNextMonthDays() {
+      const d = new Date();
+      d.setMonth(d.getMonth() + 2, 0); // 翌月末日
+      return d.getDate();
+    }
+
+    // "YYYY-MM-DD" → "M/D(曜)" 形式
+    function formatDateShort(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      if (isNaN(d.getTime())) return dateStr;
+      return (d.getMonth()+1) + '/' + d.getDate() + '(' + DOW_JA[d.getDay()] + ')';
+    }
+
+    // ══════════════════════════════════════════
+    // 投票期間制御
+    // ══════════════════════════════════════════
+    function checkVotePeriod() {
+      const voteOut  = document.getElementById('voteOutOfPeriod');
+      const voteForm = document.getElementById('voteForm');
+      const voteAdm  = document.getElementById('voteAdminPanel');
+      if (!voteOut || !voteForm) return;
+
+      const now = new Date();
+      const day = now.getDate();
+
+      if (isAdminLoggedIn()) {
+        voteOut.classList.add('hidden');
+        voteForm.classList.remove('hidden');
+        if (voteAdm) voteAdm.classList.remove('hidden');
+        // グリッドが未構築なら生成
+        if (!document.querySelector('#voteGrid .vote-cell')) buildVoteGrid('voteGrid', false);
+        if (!document.querySelector('#voteHeatmap .vote-cell')) buildVoteGrid('voteHeatmap', true);
+        return;
+      }
+
+      // 投票期間は毎月5日〜15日
+      const inPeriod = (day >= 5 && day <= 15);
+
+      if (!inPeriod) {
+        voteOut.classList.remove('hidden');
+        voteForm.classList.add('hidden');
+        if (voteAdm) voteAdm.classList.add('hidden');
+        return;
+      }
+
+      if (!isMemberLoggedIn()) {
+        // 夜グルコンタブからログインを促す
+        voteOut.innerHTML = '<span class="icon">&#x1F511;</span>参加するにはパスワードが必要です。<br>「夜グルコン」タブからログインしてください。';
+        voteOut.classList.remove('hidden');
+        voteForm.classList.add('hidden');
+        if (voteAdm) voteAdm.classList.add('hidden');
+        return;
+      }
+
+      voteOut.classList.add('hidden');
+      voteForm.classList.remove('hidden');
+      if (voteAdm) voteAdm.classList.add('hidden');
+      // グリッドが未構築なら生成
+      if (!document.querySelector('#voteGrid .vote-cell')) buildVoteGrid('voteGrid', false);
     }
 
     // ══════════════════════════════════════════
