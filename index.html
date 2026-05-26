@@ -491,8 +491,75 @@
     const CIRCLE_NUMS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩',
                          '⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
 
-    // Firebase config はここに差し込む（Task 4）
-    // const firebaseConfig = { ... };
+    // ══════════════════════════════════════════
+    // Firebase 初期化
+    // ══════════════════════════════════════════
+    const firebaseConfig = {
+      apiKey: "AIzaSyACIJxgyGjbtZwCiUymFcTdf8OOOWmXf2M",
+      authDomain: "cia-gurucon-scheduler.firebaseapp.com",
+      databaseURL: "https://cia-gurucon-scheduler-default-rtdb.firebaseio.com",
+      projectId: "cia-gurucon-scheduler",
+      storageBucket: "cia-gurucon-scheduler.firebasestorage.app",
+      messagingSenderId: "960498403498",
+      appId: "1:960498403498:web:863f613ed20cea7d5ea8d3"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ══════════════════════════════════════════
+    // アプリ状態
+    // ══════════════════════════════════════════
+    let currentEvent = null;   // { date, startTime, openDate, deadline }
+    let submissions  = {};     // { [id]: { name, duration, timeStart, timeEnd, submittedAt } }
+
+    // ══════════════════════════════════════════
+    // イベントデータ読み込み・ヘッダー更新
+    // ══════════════════════════════════════════
+    const DOW_JA = ['日','月','火','水','木','金','土'];
+
+    // "2026-05-26" → { month:5, day:26, dow:"火" } または null
+    function parseDateStr(dateStr) {
+      if (!dateStr) return null;
+      const d = new Date(dateStr + 'T00:00:00');
+      if (isNaN(d.getTime())) return null;
+      return { month: d.getMonth() + 1, day: d.getDate(), dow: DOW_JA[d.getDay()] };
+    }
+
+    // "2026-05-26", "21:00" → "5/26(火) 21:00〜"
+    function formatEventTitle(dateStr, startTime) {
+      const p = parseDateStr(dateStr);
+      if (!p) return '—';
+      return `${p.month}/${p.day}(${p.dow}) ${startTime || ''}〜`;
+    }
+
+    // "2026-05-25T23:59" → "5/25(月) 23:59まで"
+    function formatDeadlineBadge(deadlineStr) {
+      if (!deadlineStr) return '受付中';
+      const sep = deadlineStr.includes('T') ? 'T' : ' ';
+      const [datePart, timePart] = deadlineStr.split(sep);
+      const p = parseDateStr(datePart);
+      if (!p) return '受付中';
+      return `${p.month}/${p.day}(${p.dow}) ${timePart}まで`;
+    }
+
+    // Firebase からイベント情報をリアルタイム購読
+    db.ref('/cia-gurucon/event').on('value', snap => {
+      currentEvent = snap.val() || null;
+      updateHeader();
+    });
+
+    function updateHeader() {
+      const dateEl  = document.getElementById('eventDateDisplay');
+      const badgeEl = document.getElementById('deadlineBadge');
+      if (currentEvent && currentEvent.date) {
+        dateEl.textContent  = formatEventTitle(currentEvent.date, currentEvent.startTime);
+        badgeEl.textContent = formatDeadlineBadge(currentEvent.deadline);
+      } else {
+        dateEl.textContent  = '—';
+        badgeEl.textContent = '設定待ち';
+      }
+    }
   </script>
 </body>
 </html>
